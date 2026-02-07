@@ -1,5 +1,5 @@
 'use server';
-
+ 
 import {
   analyzeRiderFaceForImpairment,
   provideOptimalRestStopSuggestions,
@@ -8,13 +8,13 @@ import type { AnalyzeRiderFaceForImpairmentOutput } from '@/ai/flows';
 import type { RiderStatus, Rider } from '@/lib/types';
 import { redirect } from 'next/navigation';
 import { behavioralQuestions } from '@/lib/behavioral-questions';
-
+ 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
+ 
 // ============================================
 // Authentication Actions
 // ============================================
-
+ 
 export type AuthResult = {
   success: boolean;
   user?: {
@@ -22,11 +22,16 @@ export type AuthResult = {
     name: string;
     email: string;
     username: string;
+    language?: string;
   };
   error?: string;
 };
-
-export async function authenticateRider(username: string, password: string): Promise<AuthResult> {
+ 
+export async function authenticateRider(
+  username: string,
+  password: string,
+  language?: string
+): Promise<AuthResult> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
       method: 'POST',
@@ -36,9 +41,10 @@ export async function authenticateRider(username: string, password: string): Pro
       body: JSON.stringify({
         username,
         password,
+        language,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -46,9 +52,9 @@ export async function authenticateRider(username: string, password: string): Pro
         error: error.detail || 'Invalid username or password',
       };
     }
-
+ 
     const data = await response.json();
-
+ 
     // Handle successful login response from backend
     return {
       success: true,
@@ -57,6 +63,7 @@ export async function authenticateRider(username: string, password: string): Pro
         name: data.name || 'User',
         email: data.email || '',
         username: data.username,
+        language: data.language,
       },
     };
   } catch (error) {
@@ -67,7 +74,7 @@ export async function authenticateRider(username: string, password: string): Pro
     };
   }
 }
-
+ 
 export async function ensureDummyUserExists(): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/users/register`, {
@@ -82,7 +89,7 @@ export async function ensureDummyUserExists(): Promise<void> {
         email: 'demo@signn.com',
       }),
     });
-
+ 
     if (response.ok) {
       console.log('Dummy user created successfully');
     } else {
@@ -95,7 +102,7 @@ export async function ensureDummyUserExists(): Promise<void> {
     console.error('Error ensuring dummy user exists:', error);
   }
 }
-
+ 
 export async function createRider(riderData: {
   username: string;
   password: string;
@@ -110,7 +117,7 @@ export async function createRider(riderData: {
       },
       body: JSON.stringify(riderData),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -118,9 +125,9 @@ export async function createRider(riderData: {
         error: error.detail || 'Failed to create rider',
       };
     }
-
+ 
     const data = await response.json();
-
+ 
     return {
       success: true,
       user: {
@@ -138,7 +145,7 @@ export async function createRider(riderData: {
     };
   }
 }
-
+ 
 export async function getRiderById(riderId: string): Promise<Rider | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/users/users/${riderId}`, {
@@ -147,13 +154,13 @@ export async function getRiderById(riderId: string): Promise<Rider | null> {
         'Content-Type': 'application/json',
       },
     });
-
+ 
     if (!response.ok) {
       return null;
     }
-
+ 
     const data = await response.json();
-
+ 
     return {
       id: data.id,
       username: data.username,
@@ -168,13 +175,13 @@ export async function getRiderById(riderId: string): Promise<Rider | null> {
     return null;
   }
 }
-
+ 
 export type CheckData = {
   impairmentResult: AnalyzeRiderFaceForImpairmentOutput;
   latency?: number;
   behavioralAnswers?: Record<string, string>;
 };
-
+ 
 export async function sendCheckDataToBackend(checkData: CheckData, riderId: string) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/checks/create`, {
@@ -189,11 +196,11 @@ export async function sendCheckDataToBackend(checkData: CheckData, riderId: stri
         behavioral_answers: checkData.behavioralAnswers || {},
       }),
     });
-
+ 
     if (!response.ok) {
       throw new Error('Failed to send data to backend');
     }
-
+ 
     const data = await response.json();
     console.log('Check data stored successfully:', data.check_id);
     return data;
@@ -202,7 +209,7 @@ export async function sendCheckDataToBackend(checkData: CheckData, riderId: stri
     return null;
   }
 }
-
+ 
 export async function getVisionAnalysis(photoDataUri: string) {
   try {
     const impairmentResult = await analyzeRiderFaceForImpairment({ photoDataUri });
@@ -212,25 +219,25 @@ export async function getVisionAnalysis(photoDataUri: string) {
     return null;
   }
 }
-
+ 
 // This is the "Authority Engine"
 export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: string, checkId?: string) {
   // 1. The impairment result is passed in directly. The raw image data never reaches this state.
   let impairmentResult = checkData.impairmentResult;
-
+ 
   // 2. Retrieve the Baseline for this rider (mocked)
   const baselineLatency = 160; // ms
-
+ 
   // 3. Calculate Delta if latency is available
   const delta =
     checkData.latency
       ? ((checkData.latency - baselineLatency) / baselineLatency) * 100
       : 0;
-
+ 
   // 4. Determine status
   let status: RiderStatus = 'GREEN';
   let reason = 'Clear';
-
+ 
   let behavioralFailure = false;
   if (checkData.behavioralAnswers && Object.keys(checkData.behavioralAnswers).length > 0) {
       const questionMap = new Map(behavioralQuestions.map(q => [q.id, q]));
@@ -243,7 +250,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
           }
       }
   }
-
+ 
   if (impairmentResult.eyewearDetected) {
     status = 'RED';
     reason = 'Please remove eyewear and rescan';
@@ -267,7 +274,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
     status = 'YELLOW';
     reason = 'Cognitive delay detected';
   }
-
+ 
   // FOR TESTING: Special rules for specific rider IDs
   if (riderId === 'rider-789') {
     status = 'GREEN';
@@ -283,8 +290,8 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
     // Also mock the impairment result to be consistent with the reason
     impairmentResult.fatigueDetected = true;
   }
-
-
+ 
+ 
   // Save final result to session if checkId provided
   if (checkId) {
     try {
@@ -293,7 +300,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
       console.error('Failed to save check result:', error);
     }
   }
-
+ 
   // In a real app, you would now update Firestore:
   // - `authority_tokens` collection with the new status
   // - `readiness_ledger` collection with the full check details, including the analysis result.
@@ -303,7 +310,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
       2
     )}%`
   );
-
+ 
   // Redirect to result page with status
   const impairmentParam = impairmentResult
     ? `&impairment=${encodeURIComponent(JSON.stringify(impairmentResult))}`
@@ -311,14 +318,14 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   const userIdParam = riderId ? `&userId=${encodeURIComponent(riderId)}` : '';
   const checkIdParam = checkId ? `&checkId=${encodeURIComponent(checkId)}` : '';
   const moodParam = '&mood=neutral';
-  
+ 
   redirect(
     `/check/result?status=${status}&reason=${encodeURIComponent(
       reason
     )}${impairmentParam}${userIdParam}${checkIdParam}${moodParam}`
   );
 }
-
+ 
 export async function getRestStopSuggestion() {
   try {
     const suggestion = await provideOptimalRestStopSuggestions({
@@ -347,11 +354,11 @@ export async function getRestStopSuggestion() {
     };
   }
 }
-
+ 
 // ============================================
 // Detection Actions
 // ============================================
-
+ 
 export type DetectionResult = {
   check_id: string;
   overall_status: string;
@@ -368,7 +375,7 @@ export type DetectionResult = {
   action_required: boolean;
   action_message: string;
 };
-
+ 
 export async function saveDetection(
   userId: string,
   impairments: {
@@ -391,7 +398,7 @@ export async function saveDetection(
         mood: mood || 'neutral',
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -399,7 +406,7 @@ export async function saveDetection(
         error: error.detail || 'Failed to save detection',
       };
     }
-
+ 
     const data = await response.json();
     return {
       success: true,
@@ -414,7 +421,7 @@ export async function saveDetection(
     };
   }
 }
-
+ 
 export async function getDetectionReport(checkId: string): Promise<{ success: boolean; report?: DetectionResult; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/detection/report/${checkId}`, {
@@ -423,7 +430,7 @@ export async function getDetectionReport(checkId: string): Promise<{ success: bo
         'Content-Type': 'application/json',
       },
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -431,7 +438,7 @@ export async function getDetectionReport(checkId: string): Promise<{ success: bo
         error: error.detail || 'Failed to get detection report',
       };
     }
-
+ 
     const data = await response.json();
     return {
       success: true,
@@ -445,11 +452,11 @@ export async function getDetectionReport(checkId: string): Promise<{ success: bo
     };
   }
 }
-
+ 
 // ============================================
 // Check Session Actions (Track all steps)
 // ============================================
-
+ 
 export async function createCheckSession(userId: string): Promise<{ success: boolean; checkId?: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/create`, {
@@ -461,7 +468,7 @@ export async function createCheckSession(userId: string): Promise<{ success: boo
         user_id: userId,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -469,7 +476,7 @@ export async function createCheckSession(userId: string): Promise<{ success: boo
         error: error.detail || 'Failed to create check session',
       };
     }
-
+ 
     const data = await response.json();
     return {
       success: true,
@@ -483,7 +490,7 @@ export async function createCheckSession(userId: string): Promise<{ success: boo
     };
   }
 }
-
+ 
 export async function saveConsentToSession(checkId: string, agreed: boolean): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/consent`, {
@@ -496,7 +503,7 @@ export async function saveConsentToSession(checkId: string, agreed: boolean): Pr
         agreed,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -504,7 +511,7 @@ export async function saveConsentToSession(checkId: string, agreed: boolean): Pr
         error: error.detail || 'Failed to save consent',
       };
     }
-
+ 
     return { success: true };
   } catch (error) {
     console.error('Failed to save consent:', error);
@@ -514,7 +521,7 @@ export async function saveConsentToSession(checkId: string, agreed: boolean): Pr
     };
   }
 }
-
+ 
 export async function saveVisionToSession(checkId: string, visionData: any): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/vision`, {
@@ -527,7 +534,7 @@ export async function saveVisionToSession(checkId: string, visionData: any): Pro
         vision_data: visionData,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -535,7 +542,7 @@ export async function saveVisionToSession(checkId: string, visionData: any): Pro
         error: error.detail || 'Failed to save vision analysis',
       };
     }
-
+ 
     return { success: true };
   } catch (error) {
     console.error('Failed to save vision analysis:', error);
@@ -545,7 +552,7 @@ export async function saveVisionToSession(checkId: string, visionData: any): Pro
     };
   }
 }
-
+ 
 export async function saveCognitiveToSession(checkId: string, latency: number): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/cognitive`, {
@@ -559,7 +566,7 @@ export async function saveCognitiveToSession(checkId: string, latency: number): 
         passed: latency < 300, // Adjust threshold as needed
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -567,7 +574,7 @@ export async function saveCognitiveToSession(checkId: string, latency: number): 
         error: error.detail || 'Failed to save cognitive test',
       };
     }
-
+ 
     return { success: true };
   } catch (error) {
     console.error('Failed to save cognitive test:', error);
@@ -577,7 +584,7 @@ export async function saveCognitiveToSession(checkId: string, latency: number): 
     };
   }
 }
-
+ 
 export async function saveBehavioralToSession(checkId: string, answers: any[]): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/behavioral`, {
@@ -590,7 +597,7 @@ export async function saveBehavioralToSession(checkId: string, answers: any[]): 
         answers,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -598,7 +605,7 @@ export async function saveBehavioralToSession(checkId: string, answers: any[]): 
         error: error.detail || 'Failed to save behavioral assessment',
       };
     }
-
+ 
     return { success: true };
   } catch (error) {
     console.error('Failed to save behavioral assessment:', error);
@@ -608,7 +615,7 @@ export async function saveBehavioralToSession(checkId: string, answers: any[]): 
     };
   }
 }
-
+ 
 export async function saveCheckResult(
   checkId: string,
   overallStatus: string,
@@ -628,7 +635,7 @@ export async function saveCheckResult(
         detection_report: detectionReport,
       }),
     });
-
+ 
     if (!response.ok) {
       const error = await response.json();
       return {
@@ -636,7 +643,7 @@ export async function saveCheckResult(
         error: error.detail || 'Failed to save check result',
       };
     }
-
+ 
     return { success: true };
   } catch (error) {
     console.error('Failed to save check result:', error);
