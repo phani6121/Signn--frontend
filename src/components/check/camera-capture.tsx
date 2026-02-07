@@ -8,8 +8,15 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+// ✅ MediaPipe imports
+import { initFaceLandmarker } from '@/lib/vision/faceLandmarker';
+import {
+  extractMetrics,
+  createInitialMetricsState,
+} from '@/lib/vision/metrics';
 
 type CameraCaptureProps = {
   onCapture: (photoDataUri: string) => void;
@@ -80,36 +87,36 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'complete'>(
     'idle'
   );
-
   const [scanProgress, setScanProgress] = useState(0);
-
   const [healthValue, setHealthValue] = useState(0);
   const [stressValue, setStressValue] = useState(0);
   const [moodValue, setMoodValue] = useState(0);
-
   const [hasCameraPermission, setHasCameraPermission] =
     useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanIntervalRef = useRef<number | null>(null);
 
+  // ✅ MediaPipe refs
+  const landmarkerRef = useRef<any>(null);
+  const metricsStateRef = useRef(createInitialMetricsState());
+
   const { toast } = useToast();
 
-  /* ---------------- Cleanup Camera Stream ---------------- */
+  /* ---------------- Cleanup ---------------- */
   useEffect(() => {
     return () => {
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach((track) => track.stop());
       }
-
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
       }
     };
   }, []);
 
-  /* ---------------- Start Camera ONLY On Button Click ---------------- */
+  /* ---------------- Start Camera ---------------- */
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -124,31 +131,31 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       setHasCameraPermission(true);
     } catch (error) {
       console.error('Camera Error:', error);
-
       setHasCameraPermission(false);
-
       toast({
         variant: 'destructive',
         title: 'Camera Blocked',
-        description:
-          'Please allow camera permission in browser settings.',
+        description: 'Please allow camera permission in browser settings.',
       });
     }
   };
 
-  /* ---------------- Handle Scan Button ---------------- */
+  /* ---------------- Handle Scan ---------------- */
   const handleScan = async () => {
     if (status !== 'idle') return;
 
-    // ✅ Start Camera First (Fix for Vercel)
     if (!hasCameraPermission) {
       await startCamera();
       return;
     }
 
+    // ✅ Init MediaPipe once per scan
+    if (!landmarkerRef.current) {
+      landmarkerRef.current = await initFaceLandmarker();
+    }
+
     setStatus('scanning');
     setScanProgress(0);
-
     setHealthValue(0);
     setStressValue(0);
     setMoodValue(0);
@@ -162,7 +169,44 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       const progress = (secondsPassed / scanDuration) * 100;
       setScanProgress(progress);
 
-      // Fake Live Metrics Animation
+      /* ---------- MediaPipe per-frame processing ---------- */
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+
+      if (video && landmarker) {
+        // MediaPipe throws if the video element isn't ready yet
+        if (video.readyState < 2 || video.videoWidth === 0) {
+          return;
+        }
+
+        let res;
+        try {
+          res = landmarker.detectForVideo(video, performance.now());
+        } catch (err) {
+          console.error('FaceLandmarker detectForVideo error:', err);
+          return;
+        }
+
+        if (res?.faceLandmarks?.length) {
+          const metrics = extractMetrics(
+            res.faceLandmarks[0],
+            res.faceBlendshapes?.[0],
+            metricsStateRef.current
+          );
+
+          // 🔴 Send REAL metrics to backend
+          fetch('/api/v1/scan/frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              scan_id: 'TEMP_SCAN_ID',
+              frame_data: metrics,
+            }),
+          }).catch(() => {});
+        }
+      }
+
+      // 🟡 UI animation remains unchanged
       setHealthValue(Math.min(100, progress * 0.8 + Math.random() * 20));
       setStressValue(Math.min(100, progress * 0.3 + Math.random() * 20));
       setMoodValue(Math.min(100, progress * 0.6 + Math.random() * 40));
@@ -170,7 +214,6 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       if (secondsPassed >= scanDuration) {
         clearInterval(scanIntervalRef.current!);
         scanIntervalRef.current = null;
-
         captureImage();
       }
     }, 1000);
@@ -185,15 +228,12 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     canvas.height = videoRef.current.videoHeight;
 
     const ctx = canvas.getContext('2d');
-
     if (!ctx) return;
 
     ctx.drawImage(videoRef.current, 0, 0);
-
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     setStatus('complete');
-
     onCapture(photoDataUri);
   };
 
@@ -205,10 +245,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       </CardHeader>
 
       <CardContent className="flex flex-col items-center gap-4">
-        {/* Camera Box */}
         <div className="relative flex h-64 w-full items-center justify-center rounded-lg border overflow-hidden">
-
-          {/* Video */}
           <video
             ref={videoRef}
             autoPlay
@@ -217,7 +254,6 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
             className="w-full h-full object-cover"
           />
 
-          {/* Scanning Overlay */}
           {status === 'scanning' && (
             <div className="absolute inset-0 flex flex-col justify-end gap-4 p-4 bg-black/60">
               <div className="flex justify-around">
@@ -229,12 +265,11 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
               <Progress value={scanProgress} className="h-3" />
 
               <p className="text-center text-white font-semibold">
-                {15 - Math.floor(scanProgress / 100 * 15)} seconds remaining...
+                {15 - Math.floor((scanProgress / 100) * 15)} seconds remaining...
               </p>
             </div>
           )}
 
-          {/* Complete Overlay */}
           {status === 'complete' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
               <CheckCircle className="h-16 w-16 text-green-500" />
@@ -243,12 +278,10 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
           )}
         </div>
 
-        {/* Instructions */}
         <p className="text-sm text-muted-foreground text-center">
           Click start, keep your face centered, blink slowly 3–5 times.
         </p>
 
-        {/* Button */}
         <Button
           onClick={handleScan}
           className="w-full"
@@ -263,7 +296,6 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
             : 'Enable Camera First'}
         </Button>
 
-        {/* Permission Alert */}
         {!hasCameraPermission && (
           <Alert variant="destructive">
             <AlertTitle>Camera Permission Needed</AlertTitle>

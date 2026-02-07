@@ -1,12 +1,12 @@
 'use client';
-
+ 
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
-
+ 
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,37 +19,49 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useLanguage } from '@/context/language-context';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useToast } from '@/hooks/use-toast';
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+ 
 export default function LoginPage() {
   const loginHeroImage = PlaceHolderImages.find(
     (img) => img.id === 'login-hero'
   );
   const { login, loginWithCredentials } = useAuth();
-  const { t } = useLanguage();
+  const { t, language, setLanguage, languages } = useLanguage();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginRole, setLoginRole] = useState<'rider' | 'admin' | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
+  const [userType, setUserType] = useState<'employee' | 'gig_worker' | ''>('');
+ 
   const handleRiderLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+   
+    if (!userType) {
+      setError('Please select a user type');
+      return;
+    }
+
     if (!username.trim() || !password.trim()) {
       setError('Please enter both username and password');
       return;
     }
-    
+   
     setLoginRole('rider');
     setIsLoggingIn(true);
-    
+   
     try {
-      const result = await loginWithCredentials(username, password);
-      
+      const result = await loginWithCredentials(username, password, language, userType || undefined);
+     
       if (!result.success) {
         setError(result.error || 'Login failed');
         toast({
@@ -70,7 +82,7 @@ export default function LoginPage() {
       setLoginRole(null);
     }
   };
-
+ 
   const handleAdminLogin = () => {
     setLoginRole('admin');
     setIsLoggingIn(true);
@@ -79,12 +91,9 @@ export default function LoginPage() {
       login('admin');
     }, 1000);
   };
-
+ 
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2 xl:min-h-screen">
-      <div className="absolute top-4 right-4">
-        <LanguageSwitcher />
-      </div>
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
@@ -103,6 +112,31 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleRiderLogin} className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="user-type">User Type</Label>
+                  <Select
+                    value={userType}
+                    onValueChange={(value) => setUserType(value as typeof userType)}
+                  >
+                    <SelectTrigger id="user-type">
+                      <SelectValue placeholder="Select user type" />
+                    </SelectTrigger>
+                    <SelectContent className=" text-black border-[#3647A6]">
+                      <SelectItem
+                        value="employee"
+                        className="focus:bg-[#3647A6] focus:text-white data-[state=checked]:bg-[#3647A6] data-[state=checked]:text-white"
+                      >
+                        Employee
+                      </SelectItem>
+                      <SelectItem
+                        value="gig_worker"
+                        className="focus:bg-[#3647A6] focus:text-white data-[state=checked]:bg-[#3647A6] data-[state=checked]:text-white"
+                      >
+                        Gig Worker
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid gap-2">
                   <Label htmlFor="username">Username</Label>
                   <Input
@@ -134,6 +168,28 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoggingIn}
                   />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="language">Select Language</Label>
+                  <Select
+                    value={language}
+                    onValueChange={(value) => setLanguage(value as typeof language)}
+                  >
+                    <SelectTrigger id="language">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent className=" text-black border-[#3647A6]">
+                      {languages.map((lang) => (
+                        <SelectItem
+                          key={lang.code}
+                          value={lang.code}
+                          className="focus:bg-[#3647A6] focus:text-white data-[state=checked]:bg-[#3647A6] data-[state=checked]:text-white"
+                        >
+                          {lang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 {error && (
                   <p className="text-sm text-destructive">{error}</p>

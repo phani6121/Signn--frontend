@@ -156,11 +156,9 @@ function ResultContent() {
             <h1 className="text-3xl font-bold mb-2">{config.title}</h1>
             <p className="text-muted-foreground mb-6">{config.description}</p>
             <div className="flex gap-4 justify-center">
-            {status !== 'RED' && (
-              <Button asChild>
-                  <Link href="/">Go to Dashboard</Link>
-              </Button>
-            )}
+            <Button asChild>
+              <Link href="/">Go to Dashboard</Link>
+            </Button>
             <Button asChild variant={status === 'RED' ? 'default' : 'outline'}>
                 <Link href="/check">{reason === 'Please remove eyewear and rescan' ? 'Scan Again' : 'Re-check Status'}</Link>
             </Button>

@@ -1,5 +1,5 @@
 'use client';
-
+ 
 import React, {
   createContext,
   useContext,
@@ -10,7 +10,7 @@ import React, {
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { authenticateRider, type AuthResult } from '@/app/actions';
-
+ 
 // Mock admin user data (admin login remains unchanged)
 const MOCK_ADMIN = {
   id: 'admin-001',
@@ -18,33 +18,40 @@ const MOCK_ADMIN = {
   email: 'admin@signn.com',
   username: 'admin',
 };
-
+ 
 type User = {
   id: string;
   name: string;
   email: string;
   username?: string;
   serial_number?: string;
+  language?: string;
+  user_type?: 'employee' | 'gig_worker';
 } | null;
-
+ 
 interface AuthContextType {
   user: User;
   login: (role?: 'rider' | 'admin', id?: string) => void;
-  loginWithCredentials: (username: string, password: string) => Promise<AuthResult>;
+  loginWithCredentials: (
+    username: string,
+    password: string,
+    language?: string,
+    userType?: 'employee' | 'gig_worker'
+  ) => Promise<AuthResult>;
   logout: () => void;
   loading: boolean;
 }
-
+ 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
+ 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-
+ 
   const publicPaths = ['/login'];
-
+ 
   useEffect(() => {
     // Check for a logged-in user from session storage
     try {
@@ -57,13 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false);
   }, []);
-
+ 
   useEffect(() => {
     if (loading) return;
-
+ 
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsPublic = publicPaths.includes(pathname);
-
+ 
     // If no user, redirect to login unless on a public path
     if (!user && !pathIsPublic) {
       router.push('/login');
@@ -84,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [user, loading, pathname, router]);
-
+ 
   // Legacy login method (used for admin login)
   const login = (role: 'rider' | 'admin' = 'rider', id?: string) => {
     if (role === 'admin') {
@@ -93,24 +100,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.push('/admin');
     }
   };
-
+ 
   // New login method with username/password authentication via Firestore
-  const loginWithCredentials = async (username: string, password: string): Promise<AuthResult> => {
+  const loginWithCredentials = async (
+    username: string,
+    password: string,
+    language?: string,
+    userType?: 'employee' | 'gig_worker'
+  ): Promise<AuthResult> => {
     try {
-      const result = await authenticateRider(username, password);
-      
+      const result = await authenticateRider(username, password, language);
+     
       if (result.success && result.user) {
         const userData = {
           id: result.user.id,
           name: result.user.name,
           email: result.user.email,
           username: result.user.username,
+          language: result.user.language,
+          user_type: userType,
         };
         sessionStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         router.push('/');
       }
-      
+     
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -120,15 +134,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
   };
-
+ 
   const logout = () => {
     sessionStorage.removeItem('user');
     setUser(null);
     router.push('/login');
   };
-
+ 
   const value = { user, login, loginWithCredentials, logout, loading };
-
+ 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -136,10 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-
+ 
   const pathIsAdmin = pathname.startsWith('/admin');
   const pathIsPublic = publicPaths.includes(pathname);
-
+ 
   // More robust rendering logic
   if (!loading) {
     // Allow public pages if not logged in
@@ -164,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   }
-
+ 
   // Render loading or nothing while redirects are in flight
   return (
     <div className="flex h-screen items-center justify-center bg-background">
@@ -172,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </div>
   );
 }
-
+ 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
