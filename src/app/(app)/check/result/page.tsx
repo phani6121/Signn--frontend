@@ -171,40 +171,9 @@ function ResultContent() {
         )}
 
         {status === 'RED' && reason !== 'Please remove eyewear and rescan' && (
-            <Card className="w-full max-w-lg">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Coffee className="text-primary"/>
-                        Rest Incentive Program
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {isLoadingSuggestion ? (
-                        <div className="space-y-4">
-                            <Skeleton className="h-40 w-full" />
-                            <Skeleton className="h-6 w-3/4" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-10 w-1/2" />
-                        </div>
-                    ) : (
-                        suggestion && (
-                        <div className="space-y-4">
-                             {restStopImage && <Image src={restStopImage.imageUrl} alt={restStopImage.description} data-ai-hint={restStopImage.imageHint} width={400} height={200} className="rounded-lg w-full object-cover" />}
-                            <h3 className="font-bold text-lg flex items-center gap-2"><MapPin className="h-5 w-5"/> Optimal Rest Stop</h3>
-                            <p className="font-semibold text-primary text-xl">{suggestion.optimalRestStop}</p>
-                            <p className="text-sm text-muted-foreground">{suggestion.reasoning}</p>
-
-                             <div className="border-t pt-4">
-                                <h3 className="font-bold text-lg flex items-center gap-2"><Ticket className="h-5 w-5"/> Your Hydration Voucher</h3>
-                                <div className="mt-2 p-3 bg-muted rounded-lg text-center font-mono text-lg tracking-widest text-primary">
-                                    {suggestion.voucherCode}
-                                </div>
-                                <p className="text-xs text-center mt-2 text-muted-foreground">Show this code at the suggested location.</p>
-                            </div>
-                        </div>
-                        )
-                    )}
-                </CardContent>
+            <Card >
+                
+                
             </Card>
         )}
 
@@ -219,9 +188,7 @@ function ResultContent() {
           </Card>
         )}
 
-        {detectionReport && !isLoadingDetection && (
-          <DetectionReport report={detectionReport} />
-        )}
+        
     </div>
   );
 }
