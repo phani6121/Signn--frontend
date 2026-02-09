@@ -23,6 +23,7 @@ export type AuthResult = {
     email: string;
     username: string;
     language?: string;
+    user_type?: string;
   };
   error?: string;
 };
@@ -30,7 +31,8 @@ export type AuthResult = {
 export async function authenticateRider(
   username: string,
   password: string,
-  language?: string
+  language?: string,
+  userType?: string
 ): Promise<AuthResult> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
@@ -42,6 +44,7 @@ export async function authenticateRider(
         username,
         password,
         language,
+        user_type: userType,
       }),
     });
  
@@ -64,6 +67,7 @@ export async function authenticateRider(
         email: data.email || '',
         username: data.username,
         language: data.language,
+        user_type: data.user_type,
       },
     };
   } catch (error) {
@@ -226,7 +230,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   let impairmentResult = checkData.impairmentResult;
  
   // 2. Retrieve the Baseline for this rider (mocked)
-  const baselineLatency = 160; // ms
+  const baselineLatency = 1660; // ms
  
   // 3. Calculate Delta if latency is available
   const delta =

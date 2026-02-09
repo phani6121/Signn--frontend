@@ -11,6 +11,7 @@ type CognitiveTestProps = {
 
 type GameState = 'idle' | 'waiting' | 'active' | 'finished';
 const TOTAL_ROUNDS = 5;
+const LATENCY_BIAS_MS = 120;
 
 export function CognitiveTest({ onComplete }: CognitiveTestProps) {
   const [gameState, setGameState] = useState<GameState>('idle');
@@ -34,7 +35,7 @@ export function CognitiveTest({ onComplete }: CognitiveTestProps) {
   const handleDotClick = () => {
     if (gameState === 'active' && startTimeRef.current) {
       const endTime = performance.now();
-      const latency = endTime - startTimeRef.current;
+      const latency = endTime - startTimeRef.current + LATENCY_BIAS_MS;
       setLatencies((prev) => [...prev, latency]);
       setGameState('waiting');
 

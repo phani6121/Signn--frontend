@@ -18,6 +18,9 @@ import {
   createInitialMetricsState,
 } from '@/lib/vision/metrics';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 type CameraCaptureProps = {
   onCapture: (photoDataUri: string) => void;
 };
@@ -96,6 +99,8 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanIntervalRef = useRef<number | null>(null);
+  const detectRafRef = useRef<number | null>(null);
+  const lastVideoTimeRef = useRef<number>(-1);
 
   // ✅ MediaPipe refs
   const landmarkerRef = useRef<any>(null);
@@ -112,6 +117,9 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       }
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
+      }
+      if (detectRafRef.current) {
+        cancelAnimationFrame(detectRafRef.current);
       }
     };
   }, []);
@@ -163,48 +171,61 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     const scanDuration = 15;
     let secondsPassed = 0;
 
+    // Start per-frame detection loop (separate from 1s UI interval)
+    const runDetection = () => {
+      if (status !== 'scanning') return;
+
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
+
+      if (video && landmarker) {
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          const currentTime = video.currentTime;
+          if (currentTime !== lastVideoTimeRef.current) {
+            lastVideoTimeRef.current = currentTime;
+            try {
+              const res = landmarker.detectForVideo(
+                video,
+                performance.now()
+              );
+
+              if (res?.faceLandmarks?.length) {
+                const metrics = extractMetrics(
+                  res.faceLandmarks[0],
+                  res.faceBlendshapes?.[0],
+                  metricsStateRef.current
+                );
+
+                // 🔴 Send REAL metrics to backend
+                fetch(`${API_BASE_URL}/api/v1/scan/frame`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    scan_id: 'TEMP_SCAN_ID',
+                    frame_data: metrics,
+                  }),
+                }).catch(() => {});
+              }
+            } catch (err) {
+              console.error('FaceLandmarker detectForVideo error:', err);
+            }
+          }
+        }
+      }
+
+      detectRafRef.current = requestAnimationFrame(runDetection);
+    };
+
+    if (detectRafRef.current) {
+      cancelAnimationFrame(detectRafRef.current);
+    }
+    detectRafRef.current = requestAnimationFrame(runDetection);
+
     scanIntervalRef.current = window.setInterval(() => {
       secondsPassed++;
 
       const progress = (secondsPassed / scanDuration) * 100;
       setScanProgress(progress);
-
-      /* ---------- MediaPipe per-frame processing ---------- */
-      const video = videoRef.current;
-      const landmarker = landmarkerRef.current;
-
-      if (video && landmarker) {
-        // MediaPipe throws if the video element isn't ready yet
-        if (video.readyState < 2 || video.videoWidth === 0) {
-          return;
-        }
-
-        let res;
-        try {
-          res = landmarker.detectForVideo(video, performance.now());
-        } catch (err) {
-          console.error('FaceLandmarker detectForVideo error:', err);
-          return;
-        }
-
-        if (res?.faceLandmarks?.length) {
-          const metrics = extractMetrics(
-            res.faceLandmarks[0],
-            res.faceBlendshapes?.[0],
-            metricsStateRef.current
-          );
-
-          // 🔴 Send REAL metrics to backend
-          fetch('/api/v1/scan/frame', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              scan_id: 'TEMP_SCAN_ID',
-              frame_data: metrics,
-            }),
-          }).catch(() => {});
-        }
-      }
 
       // 🟡 UI animation remains unchanged
       setHealthValue(Math.min(100, progress * 0.8 + Math.random() * 20));
@@ -214,6 +235,10 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       if (secondsPassed >= scanDuration) {
         clearInterval(scanIntervalRef.current!);
         scanIntervalRef.current = null;
+        if (detectRafRef.current) {
+          cancelAnimationFrame(detectRafRef.current);
+          detectRafRef.current = null;
+        }
         captureImage();
       }
     }, 1000);

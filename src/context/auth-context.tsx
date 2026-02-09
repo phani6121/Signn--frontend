@@ -109,7 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userType?: 'employee' | 'gig_worker'
   ): Promise<AuthResult> => {
     try {
-      const result = await authenticateRider(username, password, language);
+      const result = await authenticateRider(
+        username,
+        password,
+        language,
+        userType
+      );
      
       if (result.success && result.user) {
         const userData = {
@@ -118,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: result.user.email,
           username: result.user.username,
           language: result.user.language,
-          user_type: userType,
+          user_type: result.user.user_type || userType,
         };
         sessionStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
