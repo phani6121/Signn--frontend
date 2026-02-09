@@ -230,7 +230,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   let impairmentResult = checkData.impairmentResult;
  
   // 2. Retrieve the Baseline for this rider (mocked)
-  const baselineLatency = 250; // ms
+  const baselineLatency = 300; // ms
  
   // 3. Calculate Delta if latency is available
   const delta =
