@@ -230,7 +230,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   let impairmentResult = checkData.impairmentResult;
  
   // 2. Retrieve the Baseline for this rider (mocked)
-  const baselineLatency = 1660; // ms
+  const baselineLatency = 500; // ms
  
   // 3. Calculate Delta if latency is available
   const delta =
@@ -461,7 +461,10 @@ export async function getDetectionReport(checkId: string): Promise<{ success: bo
 // Check Session Actions (Track all steps)
 // ============================================
  
-export async function createCheckSession(userId: string): Promise<{ success: boolean; checkId?: string; error?: string }> {
+export async function createCheckSession(
+  userId: string,
+  shiftType?: 'login' | 'logout'
+): Promise<{ success: boolean; checkId?: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/create`, {
       method: 'POST',
@@ -470,6 +473,7 @@ export async function createCheckSession(userId: string): Promise<{ success: boo
       },
       body: JSON.stringify({
         user_id: userId,
+        shift_type: shiftType,
       }),
     });
  

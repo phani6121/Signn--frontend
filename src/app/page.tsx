@@ -118,6 +118,7 @@ function RiderDashboard() {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [shiftType, setShiftType] = useState<'login' | 'logout'>('login');
  
   useEffect(() => {
     const userId = user?.id || user?.username;
@@ -174,6 +175,8 @@ function RiderDashboard() {
   };
   const healthIndex =
     dashboard?.health_index ?? (checkCounts.total ? Math.round((checkCounts.green / checkCounts.total) * 100) : 0);
+  const startCheckHref =
+    user?.user_type === 'employee' ? `/check?shift=${shiftType}` : '/check';
  
   const recentChecks = useMemo(() => {
     const checks = dashboard?.recent_checks || [];
@@ -200,10 +203,18 @@ function RiderDashboard() {
           <p className="mt-4 text-muted-foreground">{description}</p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <Button asChild className="w-full sm:w-auto" size="lg">
-              <Link href="/check">Start Shift Check</Link>
+              <Link href={startCheckHref}>Start Shift Check</Link>
             </Button>
             {user?.user_type === 'employee' && (
-              <RadioGroup defaultValue="login" className="flex items-center gap-4">
+              <RadioGroup
+                value={shiftType}
+                onValueChange={(value) => {
+                  if (value === 'login' || value === 'logout') {
+                    setShiftType(value);
+                  }
+                }}
+                className="flex items-center gap-4"
+              >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="login" id="login-time" />
                   <Label htmlFor="login-time">Shift Login</Label>

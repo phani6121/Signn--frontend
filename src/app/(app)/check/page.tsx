@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import {
   Camera,
   BrainCircuit,
@@ -53,6 +54,9 @@ const STEPS: { id: Exclude<Step, 'vision-result' | 'submitting'>; title: string;
 ];
 
 export default function ShiftCheckPage() {
+  const searchParams = useSearchParams();
+  const shiftParam = searchParams.get('shift');
+  const shiftType = shiftParam === 'logout' ? 'logout' : 'login';
   const [currentStep, setCurrentStep] = useState<Step>('consent');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkData, setCheckData] = useState<{
@@ -69,18 +73,19 @@ export default function ShiftCheckPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
+  const shiftTypeForSession = user?.user_type === 'employee' ? shiftType : undefined;
 
   // Create check session on mount
   useEffect(() => {
     if (user?.id) {
-      serverActions.createCheckSession(user.id).then((result) => {
+      serverActions.createCheckSession(user.id, shiftTypeForSession).then((result) => {
         if (result.success && result.checkId) {
           setCheckId(result.checkId);
           console.log('Check session created:', result.checkId);
         }
       });
     }
-  }, [user?.id]);
+  }, [user?.id, shiftTypeForSession]);
 
   useEffect(() => {
     if (currentStep === 'behavioral' && selectedQuestions.length === 0) {
