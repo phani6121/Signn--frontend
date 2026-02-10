@@ -6,6 +6,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
  
 import { Button } from '@/components/ui/button';
 import {
@@ -33,7 +34,8 @@ export default function LoginPage() {
     (img) => img.id === 'login-hero'
   );
   const { login, loginWithCredentials } = useAuth();
-  const { t, language, setLanguage, languages } = useLanguage();
+  const { language, setLanguage, languages } = useLanguage();
+  const t = useTranslations();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginRole, setLoginRole] = useState<'rider' | 'admin' | null>(null);

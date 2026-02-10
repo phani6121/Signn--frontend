@@ -230,7 +230,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   let impairmentResult = checkData.impairmentResult;
  
   // 2. Retrieve the Baseline for this rider (mocked)
-  const baselineLatency = 500; // ms
+  const baselineLatency = 300; // ms
  
   // 3. Calculate Delta if latency is available
   const delta =
@@ -265,7 +265,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
     status = 'RED';
     if (impairmentResult.intoxicationDetected) reason = 'Intoxication Detected';
     else if (impairmentResult.fatigueDetected) reason = 'Fatigue Detected';
-  } else if (delta > 40) {
+  } else if (delta <= 40) {
     status = 'RED';
     reason = 'Critical Cognitive Fatigue';
   } else if (behavioralFailure) {

@@ -31,7 +31,8 @@ function initializeFirebaseAdmin() {
     app = getApps()[0];
   }
   
-  adminDb = getFirestore(app);
+  const databaseId = process.env.FIREBASE_DATABASE_ID;
+  adminDb = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
   return adminDb;
 }
 
