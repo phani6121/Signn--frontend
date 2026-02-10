@@ -69,9 +69,25 @@ export function FleetStatusChart({
     return chartData.reduce((acc, curr) => acc + curr.riders, 0);
   }, [chartData, totalRiders]);
 
+  const computedOperationalPercentage = React.useMemo(() => {
+    const green = readiness?.green ?? 0;
+    const yellow = readiness?.yellow ?? 0;
+    const red = readiness?.red ?? 0;
+    const total = green + yellow + red;
+    if (!total) {
+      return null;
+    }
+    return Math.round(((green + yellow) / total) * 100);
+  }, [readiness]);
+
+  const resolvedOperationalPercentage =
+    typeof operationalPercentage === 'number' && operationalPercentage > 0
+      ? operationalPercentage
+      : computedOperationalPercentage;
+
   const operationalText =
-    typeof operationalPercentage === 'number'
-      ? `${operationalPercentage}% of fleet is fully operational`
+    typeof resolvedOperationalPercentage === 'number'
+      ? `${resolvedOperationalPercentage}% of fleet is fully operational`
       : 'Fleet readiness is updating...';
 
   return (
