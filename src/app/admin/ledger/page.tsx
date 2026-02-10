@@ -209,7 +209,7 @@ export default function AdminLedgerPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Check ID</TableHead>
-              <TableHead>{t('rider_id')}</TableHead>
+              <TableHead>User ID</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Latency</TableHead>
               <TableHead>Reason</TableHead>
@@ -315,7 +315,7 @@ export default function AdminLedgerPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder={t('search_by_rider_id')}
+              placeholder="Search by User ID..."
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
               value={riderQuery}
               onChange={(event) => {
@@ -377,7 +377,7 @@ export default function AdminLedgerPage() {
                             </p>
                         </div>
                         <div className="space-y-2 text-sm">
-                            <p><strong>Rider ID:</strong> {selectedEntry.riderId}</p>
+                            <p><strong>User ID:</strong> {selectedEntry.riderId}</p>
                             <p><strong>Status:</strong> <Badge variant={selectedEntry.status === 'GREEN' ? 'default' : selectedEntry.status === 'YELLOW' ? 'secondary' : 'destructive'}>{selectedEntry.status}</Badge></p>
                             <p><strong>Reason:</strong> {selectedEntry.reason}</p>
                             <p><strong>Cognitive Latency:</strong> {selectedEntry.latency}ms</p>

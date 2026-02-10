@@ -23,6 +23,7 @@ const API_BASE_URL =
 
 type CameraCaptureProps = {
   onCapture: (photoDataUri: string) => void;
+  userId?: string;
 };
 
 /* ------------------ Gauge Meter Component ------------------ */
@@ -86,7 +87,7 @@ const GaugeMeter = ({
 };
 
 /* ------------------ Main Component ------------------ */
-export function CameraCapture({ onCapture }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'complete'>(
     'idle'
   );
@@ -101,12 +102,74 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   const scanIntervalRef = useRef<number | null>(null);
   const detectRafRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
+  const isScanningRef = useRef<boolean>(false);
+  const scanIdRef = useRef<string | null>(null);
+  const shiftIdRef = useRef<string | null>(null);
 
   // ✅ MediaPipe refs
   const landmarkerRef = useRef<any>(null);
   const metricsStateRef = useRef(createInitialMetricsState());
 
   const { toast } = useToast();
+
+  const ensureScanSession = async () => {
+    if (!userId) {
+      toast({
+        variant: 'destructive',
+        title: 'Session Error',
+        description: 'Missing user ID for scan session.',
+      });
+      return null;
+    }
+
+    if (!shiftIdRef.current) {
+      const shiftRes = await fetch(`${API_BASE_URL}/api/v1/shift/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      if (!shiftRes.ok) {
+        toast({
+          variant: 'destructive',
+          title: 'Shift Error',
+          description: 'Unable to start shift for scan.',
+        });
+        return null;
+      }
+
+      const shiftData = await shiftRes.json();
+      shiftIdRef.current = shiftData.shift_id;
+    }
+
+    const scanRes = await fetch(`${API_BASE_URL}/api/v1/scan/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shift_id: shiftIdRef.current }),
+    });
+
+    if (!scanRes.ok) {
+      toast({
+        variant: 'destructive',
+        title: 'Scan Error',
+        description: 'Unable to start scan session.',
+      });
+      return null;
+    }
+
+    const scanData = await scanRes.json();
+    scanIdRef.current = scanData.scan_id;
+    return scanIdRef.current;
+  };
+
+  const finalizeScan = async () => {
+    if (!scanIdRef.current) return;
+    await fetch(`${API_BASE_URL}/api/v1/scan/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scan_id: scanIdRef.current }),
+    }).catch(() => {});
+  };
 
   /* ---------------- Cleanup ---------------- */
   useEffect(() => {
@@ -157,12 +220,16 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       return;
     }
 
+    const scanId = await ensureScanSession();
+    if (!scanId) return;
+
     // ✅ Init MediaPipe once per scan
     if (!landmarkerRef.current) {
       landmarkerRef.current = await initFaceLandmarker();
     }
 
     setStatus('scanning');
+    isScanningRef.current = true;
     setScanProgress(0);
     setHealthValue(0);
     setStressValue(0);
@@ -173,12 +240,12 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
 
     // Start per-frame detection loop (separate from 1s UI interval)
     const runDetection = () => {
-      if (status !== 'scanning') return;
+      if (!isScanningRef.current) return;
 
       const video = videoRef.current;
       const landmarker = landmarkerRef.current;
 
-      if (video && landmarker) {
+      if (video && landmarker && typeof landmarker.detectForVideo === 'function') {
         if (video.readyState >= 2 && video.videoWidth > 0) {
           const currentTime = video.currentTime;
           if (currentTime !== lastVideoTimeRef.current) {
@@ -197,17 +264,29 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
                 );
 
                 // 🔴 Send REAL metrics to backend
-                fetch(`${API_BASE_URL}/api/v1/scan/frame`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    scan_id: 'TEMP_SCAN_ID',
-                    frame_data: metrics,
-                  }),
-                }).catch(() => {});
+                if (scanIdRef.current) {
+                  fetch(`${API_BASE_URL}/api/v1/scan/frame`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      scan_id: scanIdRef.current,
+                      frame_data: metrics,
+                    }),
+                  }).catch(() => {});
+                }
               }
             } catch (err) {
               console.error('FaceLandmarker detectForVideo error:', err);
+              isScanningRef.current = false;
+              if (detectRafRef.current) {
+                cancelAnimationFrame(detectRafRef.current);
+                detectRafRef.current = null;
+              }
+              toast({
+                variant: 'destructive',
+                title: 'Vision Error',
+                description: 'Face analysis failed. Please try again.',
+              });
             }
           }
         }
@@ -239,7 +318,10 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
           cancelAnimationFrame(detectRafRef.current);
           detectRafRef.current = null;
         }
-        captureImage();
+        isScanningRef.current = false;
+        finalizeScan().finally(() => {
+          captureImage();
+        });
       }
     }, 1000);
   };
@@ -259,6 +341,8 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     setStatus('complete');
+    isScanningRef.current = false;
+    scanIdRef.current = null;
     onCapture(photoDataUri);
   };
 
@@ -333,3 +417,5 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     </Card>
   );
 }
+
+

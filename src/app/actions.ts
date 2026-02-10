@@ -265,7 +265,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
     status = 'RED';
     if (impairmentResult.intoxicationDetected) reason = 'Intoxication Detected';
     else if (impairmentResult.fatigueDetected) reason = 'Fatigue Detected';
-  } else if (delta <= 40) {
+  } else if (delta > 40) {
     status = 'RED';
     reason = 'Critical Cognitive Fatigue';
   } else if (behavioralFailure) {

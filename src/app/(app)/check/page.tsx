@@ -322,7 +322,7 @@ export default function ShiftCheckPage() {
           )}
 
           {currentStep === 'vision' && (
-            <CameraCapture onCapture={handleVisionCapture} />
+            <CameraCapture onCapture={handleVisionCapture} userId={user?.id} />
           )}
 
           {currentStep === 'vision-result' && (

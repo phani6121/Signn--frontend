@@ -35,8 +35,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: number | undefined;
-
     const loadMetrics = async () => {
       try {
         const response = await fetch(
@@ -62,13 +60,9 @@ export default function AdminDashboard() {
     };
 
     loadMetrics();
-    timer = window.setInterval(loadMetrics, 60000);
 
     return () => {
       cancelled = true;
-      if (timer) {
-        window.clearInterval(timer);
-      }
     };
   }, []);
 
@@ -100,52 +94,13 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Accident Prevention Log
+              Fatigue Detections
             </CardTitle>
             <ShieldOff className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">42</div>
-            <p className="text-xs text-muted-foreground">
-              {t('impaired_riders_blocked')} this week
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">5 zones</div>
-            <p className="text-xs text-muted-foreground">
-              Showing high fatigue signals
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-1 hidden lg:block">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Premium Reduction</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">15%</div>
-                <p className="text-xs text-muted-foreground">
-                Potential insurance premium reduction
-                </p>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Fatigue Detections
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
             <div className="text-2xl font-bold">
-              {metrics?.fatigue_detections ?? 'â€”'}
+              {metrics?.fatigue_detections ?? '-'}
             </div>
             <p className="text-xs text-muted-foreground">
               All time
@@ -161,14 +116,14 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {metrics?.stress_detections ?? 'â€”'}
+              {metrics?.stress_detections ?? '-'}
             </div>
             <p className="text-xs text-muted-foreground">
               All time
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-1 hidden lg:block">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Shift Risk
@@ -177,7 +132,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {metrics?.shift_risk_detections ?? 'â€”'}
+              {metrics?.shift_risk_detections ?? '-'}
             </div>
             <p className="text-xs text-muted-foreground">
               All time
@@ -185,7 +140,71 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+        <Card className="relative overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Accident Prevention Log
+            </CardTitle>
+            <ShieldOff className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="select-none blur-[2px]">
+              <div className="text-lg font-semibold">42</div>
+              <p className="text-xs text-muted-foreground">
+                {t('impaired_riders_blocked')} this week
+              </p>
+            </div>
+          </CardContent>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Coming soon
+            </div>
+          </div>
+        </Card>
+        <Card className="relative overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Alerts
+            </CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="select-none blur-[2px]">
+              <div className="text-lg font-semibold">5 zones</div>
+              <p className="text-xs text-muted-foreground">
+                Showing high fatigue signals
+              </p>
+            </div>
+          </CardContent>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Coming soon
+            </div>
+          </div>
+        </Card>
+        <Card className="relative overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Premium Reduction
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="select-none blur-[2px]">
+              <div className="text-lg font-semibold">15%</div>
+              <p className="text-xs text-muted-foreground">
+                Potential insurance premium reduction
+              </p>
+            </div>
+          </CardContent>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-full bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Coming soon
+            </div>
+          </div>
+        </Card>
+      </div>
+      <div className="grid items-start gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <RecentChecks />
         </div>

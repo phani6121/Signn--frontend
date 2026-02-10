@@ -198,7 +198,7 @@ export function RecentChecks() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t('rider')}</TableHead>
+              <TableHead>User</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Reason</TableHead>
               <TableHead className="text-right">Time</TableHead>
