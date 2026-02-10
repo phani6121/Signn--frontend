@@ -3,8 +3,8 @@
 import { useLanguage } from '@/context/language-context';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -23,9 +23,13 @@ export function LanguageSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {languages.map(lang => (
-          <DropdownMenuItem key={lang.code} onClick={() => setLanguage(lang.code)}>
+          <DropdownMenuCheckboxItem
+            key={lang.code}
+            checked={language === lang.code}
+            onCheckedChange={() => setLanguage(lang.code)}
+          >
             {lang.name}
-          </DropdownMenuItem>
+          </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

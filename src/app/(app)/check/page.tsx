@@ -36,7 +36,7 @@ import { AnalysisDetails } from '@/components/check/analysis-details';
 import type { AnalyzeRiderFaceForImpairmentOutput } from '@/ai/flows';
 import type { RiderStatus } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
-import { useLanguage } from '@/context/language-context';
+import { useTranslations } from 'next-intl';
 import { behavioralQuestions, type BehavioralQuestion } from '@/lib/behavioral-questions';
 
 
@@ -72,20 +72,38 @@ export default function ShiftCheckPage() {
   const [checkId, setCheckId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const t = useTranslations();
   const shiftTypeForSession = user?.user_type === 'employee' ? shiftType : undefined;
+  const storageKey = user?.id ? `checkSession:${user.id}` : null;
 
-  // Create check session on mount
-  useEffect(() => {
-    if (user?.id) {
-      serverActions.createCheckSession(user.id, shiftTypeForSession).then((result) => {
-        if (result.success && result.checkId) {
-          setCheckId(result.checkId);
-          console.log('Check session created:', result.checkId);
-        }
-      });
+  const ensureCheckSession = async () => {
+    if (!user?.id) return null;
+    if (!checkId && storageKey) {
+      const stored = sessionStorage.getItem(storageKey);
+      if (stored) {
+        setCheckId(stored);
+        return stored;
+      }
     }
-  }, [user?.id, shiftTypeForSession]);
+    if (checkId) return checkId;
+    const result = await serverActions.createCheckSession(user.id, shiftTypeForSession);
+    if (result.success && result.checkId) {
+      setCheckId(result.checkId);
+      if (storageKey) {
+        sessionStorage.setItem(storageKey, result.checkId);
+      }
+      return result.checkId;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (!storageKey) return;
+    const stored = sessionStorage.getItem(storageKey);
+    if (stored && !checkId) {
+      setCheckId(stored);
+    }
+  }, [storageKey, checkId]);
 
   useEffect(() => {
     if (currentStep === 'behavioral' && selectedQuestions.length === 0) {
@@ -139,8 +157,9 @@ export default function ShiftCheckPage() {
       setCheckData((prev) => ({ ...prev, impairmentResult: finalResult }));
 
       // Save vision analysis to session
-      if (checkId) {
-        serverActions.saveVisionToSession(checkId, finalResult).catch((error) => {
+      const sessionId = await ensureCheckSession();
+      if (sessionId) {
+        serverActions.saveVisionToSession(sessionId, finalResult).catch((error) => {
           console.error('Failed to save vision analysis:', error);
         });
       }
@@ -173,19 +192,28 @@ export default function ShiftCheckPage() {
     setCheckData((prev) => ({ ...prev, latency }));
     
     // Save cognitive test to session
-    if (checkId) {
-      serverActions.saveCognitiveToSession(checkId, latency).catch((error) => {
-        console.error('Failed to save cognitive test:', error);
-      });
-    }
+    ensureCheckSession().then((sessionId) => {
+      if (sessionId) {
+        serverActions.saveCognitiveToSession(sessionId, latency).catch((error) => {
+          console.error('Failed to save cognitive test:', error);
+        });
+      }
+    });
     
     setTimeout(goToNextStep, 500);
   };
   
   const handleConsent = async () => {
-    // Save consent to session
-    if (checkId) {
-      await serverActions.saveConsentToSession(checkId, true);
+    const sessionId = await ensureCheckSession();
+    if (sessionId) {
+      await serverActions.saveConsentToSession(sessionId, true);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Session Error',
+        description: 'Unable to start check session. Please try again.',
+      });
+      return;
     }
     setCurrentStep('vision');
   }
@@ -207,21 +235,34 @@ export default function ShiftCheckPage() {
         behavioralAnswers: (Object.keys(behavioralAnswers).length > 0) ? behavioralAnswers : undefined,
     };
 
+    const sessionId = await ensureCheckSession();
+    if (!sessionId) {
+      toast({
+        variant: 'destructive',
+        title: 'Session Error',
+        description: 'Unable to save check. Please try again.',
+      });
+      return;
+    }
+
     // Save behavioral answers before submitting
-    if (checkId && Object.keys(behavioralAnswers).length > 0) {
+    if (sessionId && Object.keys(behavioralAnswers).length > 0) {
       const answers = Object.entries(behavioralAnswers).map(([questionId, answer]) => ({
         question_id: questionId,
         question: '',
         answer: answer as string,
       }));
-      await serverActions.saveBehavioralToSession(checkId, answers);
+      await serverActions.saveBehavioralToSession(sessionId, answers);
     }
 
     setIsSubmitting(true);
     setCurrentStep('submitting');
     
     // Pass checkId to evaluation so it can be saved in final result
-    await serverActions.evaluateGatekeeperStatus(finalCheckData, user?.id, checkId);
+    if (storageKey) {
+      sessionStorage.removeItem(storageKey);
+    }
+    await serverActions.evaluateGatekeeperStatus(finalCheckData, user?.id, sessionId || undefined);
   };
 
   const getStepTitle = () => {

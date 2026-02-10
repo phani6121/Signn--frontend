@@ -1,18 +1,16 @@
 'use client';
  
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { translations, languages } from '@/lib/translations';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import { NextIntlClientProvider } from 'next-intl';
+import { languages } from '@/lib/translations';
+import { getMessagesForLocale } from '@/lib/i18n';
 import { useAuth } from '@/context/auth-context';
  
 type Language = typeof languages[number]['code'];
  
-type Translations = typeof translations;
-type TranslationKey = keyof Translations;
- 
 interface LanguageContextType {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: TranslationKey) => string;
   languages: typeof languages;
 }
  
@@ -71,13 +69,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   };
  
-  const t = (key: TranslationKey): string => {
-    return translations[key]?.[language] || translations[key]?.['en'] || key;
-  };
+  const messages = useMemo(() => getMessagesForLocale(language), [language]);
+  const value = { language, setLanguage: handleSetLanguage, languages };
  
-  const value = { language, setLanguage: handleSetLanguage, t, languages };
- 
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+  return (
+    <LanguageContext.Provider value={value}>
+      <NextIntlClientProvider locale={language} messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </LanguageContext.Provider>
+  );
 }
  
 export function useLanguage() {

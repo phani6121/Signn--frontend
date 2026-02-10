@@ -30,10 +30,10 @@ import {
 import { RiderStatus } from '@/lib/types';
 import { Logo } from '@/components/logo';
 import { UserNav } from '@/components/user-nav';
-import { useLanguage } from '@/context/language-context';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useAuth } from '@/context/auth-context';
 import { AnimatedRadialChart } from '@/components/animated-radial-chart';
+import { useTranslations } from 'next-intl';
  
 // This component is a combination of the original /app/(app)/layout.tsx and /app/(app)/page.tsx
 // to work around a Next.js routing conflict with the AuthProvider.
@@ -114,7 +114,7 @@ function formatRelativeTime(iso?: string | null): string {
 }
  
 function RiderDashboard() {
-  const { t } = useLanguage();
+  const t = useTranslations();
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);

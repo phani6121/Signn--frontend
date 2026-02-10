@@ -19,7 +19,8 @@ let db: Firestore | undefined;
 
 if (typeof window !== 'undefined') {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : (getApps()[0] as FirebaseApp);
-  db = getFirestore(app);
+  const databaseId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID;
+  db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
 }
 
 const analytics: Analytics | null =

@@ -1,4 +1,4 @@
-export const languages = [
+﻿export const languages = [
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'हिन्दी' },
   { code: 'te', name: 'తెలుగు' },
