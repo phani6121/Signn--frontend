@@ -1,15 +1,10 @@
 'use client';
- 
-import { ShieldOff, Users, AlertTriangle } from 'lucide-react';
+
+import { ShieldOff, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { FleetStatusChart } from '@/components/admin/fleet-status-chart';
 import { RecentChecks } from '@/components/admin/recent-checks';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -18,31 +13,48 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
- 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
- 
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 type DashboardMetrics = {
   total_active_riders: number;
+  active_riders_change_pct?: number | null;
+
+  shift_ready_count: number;
+  shift_not_ready_count: number;
+
   fleet_readiness: {
     green: number;
     yellow: number;
     red: number;
   };
   fleet_operational_percentage: number;
+
   fatigue_detections: number;
   stress_detections: number;
   shift_risk_detections: number;
 };
- 
+
 export default function AdminDashboard() {
   const t = useTranslations();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [rangeDays, setRangeDays] = useState<'all' | '1' | '7' | '14' | '21'>('all');
- 
+  const [rangeDays, setRangeDays] = useState<'all' | '1' | '7' | '14' | '21'>(
+    'all'
+  );
+
+  const activeRidersSubtitle = (() => {
+    const pct = metrics?.active_riders_change_pct;
+    if (typeof pct === 'number' && Number.isFinite(pct)) {
+      const sign = pct >= 0 ? '+' : '-';
+      return `${sign}${Math.abs(pct).toFixed(1)}% from yesterday`;
+    }
+    return '+0.0% from yesterday';
+  })();
+
   useEffect(() => {
     let cancelled = false;
+
     const loadMetrics = async () => {
       try {
         const params = new URLSearchParams();
@@ -51,16 +63,18 @@ export default function AdminDashboard() {
         } else {
           params.set('range_days', rangeDays);
         }
+
         const response = await fetch(
           `${API_BASE_URL}/api/v1/admin/dashboard/metrics?${params.toString()}`,
-          {
-            method: 'GET',
-          }
+          { method: 'GET' }
         );
+
         if (!response.ok) {
           throw new Error(`Request failed: ${response.status}`);
         }
+
         const data = (await response.json()) as DashboardMetrics;
+
         if (!cancelled) {
           setMetrics(data);
           setMetricsError(null);
@@ -71,18 +85,21 @@ export default function AdminDashboard() {
         }
       }
     };
- 
+
     loadMetrics();
- 
+
     return () => {
       cancelled = true;
     };
   }, [rangeDays]);
- 
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold md:text-2xl">{t('readiness_control_room')}</h1>
+        <h1 className="text-lg font-semibold md:text-2xl">
+          {t('readiness_control_room')}
+        </h1>
+
         <div className="w-full sm:w-auto">
           <Select
             value={rangeDays}
@@ -101,10 +118,11 @@ export default function AdminDashboard() {
           </Select>
         </div>
       </div>
-      {metricsError && (
-        <div className="text-sm text-red-600">{metricsError}</div>
-      )}
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+
+      {metricsError && <div className="text-sm text-red-600">{metricsError}</div>}
+
+      {/* Top KPI row (updated to 6 columns + shift ready/not ready) */}
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -113,69 +131,67 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.total_active_riders ?? '-'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              +20.1% from last month
-            </p>
+            <div className="text-2xl font-bold">{metrics?.total_active_riders ?? '-'}</div>
+            <p className="text-xs text-muted-foreground">{activeRidersSubtitle}</p>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Fatigue Detections
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Shift Ready</CardTitle>
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.shift_ready_count ?? '-'}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Shift Not Ready</CardTitle>
             <ShieldOff className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.fatigue_detections ?? '-'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              All time
-            </p>
+            <div className="text-2xl font-bold">{metrics?.shift_not_ready_count ?? '-'}</div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Stress Detections
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Shift Risk</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.stress_detections ?? '-'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              All time
-            </p>
+            <div className="text-2xl font-bold">{metrics?.shift_risk_detections ?? '-'}</div>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-1 hidden lg:block">
+
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Shift Risk
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Fatigue Detections</CardTitle>
+            <ShieldOff className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.fatigue_detections ?? '-'}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Stress Detections</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {metrics?.shift_risk_detections ?? '-'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              All time
-            </p>
+            <div className="text-2xl font-bold">{metrics?.stress_detections ?? '-'}</div>
           </CardContent>
         </Card>
       </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+
+      {/* Coming soon row (updated to lg:grid-cols-3) */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Accident Prevention Log
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Accident Prevention Log</CardTitle>
             <ShieldOff className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -192,19 +208,16 @@ export default function AdminDashboard() {
             </div>
           </div>
         </Card>
+
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Alerts
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Alerts</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="select-none blur-[2px]">
               <div className="text-lg font-semibold">5 zones</div>
-              <p className="text-xs text-muted-foreground">
-                Showing high fatigue signals
-              </p>
+              <p className="text-xs text-muted-foreground">Showing high fatigue signals</p>
             </div>
           </CardContent>
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -213,11 +226,10 @@ export default function AdminDashboard() {
             </div>
           </div>
         </Card>
+
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Premium Reduction
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Premium Reduction</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="select-none blur-[2px]">
@@ -234,14 +246,19 @@ export default function AdminDashboard() {
           </div>
         </Card>
       </div>
+
       <div className="grid items-start gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <RecentChecks />
         </div>
+
         <FleetStatusChart
           readiness={metrics?.fleet_readiness}
           totalRiders={metrics?.total_active_riders}
           operationalPercentage={metrics?.fleet_operational_percentage}
+          fatigueDetections={metrics?.fatigue_detections}
+          stressDetections={metrics?.stress_detections}
+          shiftRiskDetections={metrics?.shift_risk_detections}
         />
       </div>
     </>
