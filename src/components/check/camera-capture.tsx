@@ -102,6 +102,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
   const scanIntervalRef = useRef<number | null>(null);
   const detectRafRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
+  const lastDetectTsMsRef = useRef<number>(-1);
+  const detectErrorStreakRef = useRef<number>(0);
   const isScanningRef = useRef<boolean>(false);
   const scanIdRef = useRef<string | null>(null);
   const shiftIdRef = useRef<string | null>(null);
@@ -230,6 +232,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
 
     setStatus('scanning');
     isScanningRef.current = true;
+    detectErrorStreakRef.current = 0;
+    lastDetectTsMsRef.current = -1;
     setScanProgress(0);
     setHealthValue(0);
     setStressValue(0);
@@ -246,15 +250,25 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
       const landmarker = landmarkerRef.current;
 
       if (video && landmarker && typeof landmarker.detectForVideo === 'function') {
-        if (video.readyState >= 2 && video.videoWidth > 0) {
+        if (
+          video.readyState >= 2 &&
+          video.videoWidth > 0 &&
+          video.videoHeight > 0 &&
+          !video.paused &&
+          !video.ended
+        ) {
           const currentTime = video.currentTime;
-          if (currentTime !== lastVideoTimeRef.current) {
+          if (Number.isFinite(currentTime) && currentTime !== lastVideoTimeRef.current) {
             lastVideoTimeRef.current = currentTime;
             try {
-              const res = landmarker.detectForVideo(
-                video,
-                performance.now()
+              const frameTimeMs = Math.max(
+                Math.floor(currentTime * 1000),
+                lastDetectTsMsRef.current + 1
               );
+              lastDetectTsMsRef.current = frameTimeMs;
+
+              const res = landmarker.detectForVideo(video, frameTimeMs);
+              detectErrorStreakRef.current = 0;
 
               if (res?.faceLandmarks?.length) {
                 const metrics = extractMetrics(
@@ -277,16 +291,20 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
               }
             } catch (err) {
               console.error('FaceLandmarker detectForVideo error:', err);
-              isScanningRef.current = false;
-              if (detectRafRef.current) {
-                cancelAnimationFrame(detectRafRef.current);
-                detectRafRef.current = null;
+              detectErrorStreakRef.current += 1;
+              // Allow transient frame-level errors without aborting the whole scan.
+              if (detectErrorStreakRef.current >= 5) {
+                isScanningRef.current = false;
+                if (detectRafRef.current) {
+                  cancelAnimationFrame(detectRafRef.current);
+                  detectRafRef.current = null;
+                }
+                toast({
+                  variant: 'destructive',
+                  title: 'Vision Error',
+                  description: 'Face analysis failed. Please try again.',
+                });
               }
-              toast({
-                variant: 'destructive',
-                title: 'Vision Error',
-                description: 'Face analysis failed. Please try again.',
-              });
             }
           }
         }

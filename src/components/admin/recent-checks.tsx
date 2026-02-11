@@ -1,5 +1,5 @@
 'use client';
-
+ 
 import { ArrowUpRight, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -29,11 +29,11 @@ import {
 import { RiderStatus } from '@/lib/types';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-
+ 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY;
-
+ 
 type RecentCheck = {
   rider_id?: string | null;
   status?: RiderStatus | null;
@@ -41,7 +41,7 @@ type RecentCheck = {
   check_id?: string | null;
   updated_at?: string | null;
 };
-
+ 
 const StatusIcon = ({ status }: { status: RiderStatus }) => {
     switch (status) {
         case 'GREEN':
@@ -54,7 +54,7 @@ const StatusIcon = ({ status }: { status: RiderStatus }) => {
             return null;
     }
 }
-
+ 
 function formatRelativeTime(iso?: string | null): string {
   if (!iso) return 'No recent checks';
   const hasTimezone = /[Zz]|[+-]\d{2}:\d{2}$/.test(iso);
@@ -71,18 +71,18 @@ function formatRelativeTime(iso?: string | null): string {
   if (diffDays === 1) return 'Yesterday';
   return `${diffDays} days ago`;
 }
-
+ 
 export function RecentChecks() {
   const t = useTranslations();
   const [checks, setChecks] = useState<RecentCheck[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rangeDays, setRangeDays] = useState<'all' | '1' | '7' | '14' | '21'>('all');
-
+ 
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
-
+ 
     const loadChecks = async () => {
       setLoading(true);
       try {
@@ -91,7 +91,6 @@ export function RecentChecks() {
           {
             method: 'GET',
             headers: {
-              'Content-Type': 'application/json',
               ...(ADMIN_API_KEY
                 ? { Authorization: `Bearer ${ADMIN_API_KEY}` }
                 : {}),
@@ -116,10 +115,10 @@ export function RecentChecks() {
         }
       }
     };
-
+ 
     loadChecks();
-    timer = window.setInterval(loadChecks, 60000);
-
+    timer = window.setInterval(loadChecks, 5000);
+ 
     return () => {
       cancelled = true;
       if (timer) {
@@ -127,14 +126,14 @@ export function RecentChecks() {
       }
     };
   }, []);
-
+ 
   const cutoffMs = useMemo(() => {
     if (rangeDays === 'all') return null;
     const days = Number(rangeDays);
     if (!Number.isFinite(days)) return null;
     return Date.now() - days * 24 * 60 * 60 * 1000;
   }, [rangeDays]);
-
+ 
   const rows = useMemo(() => {
     const filtered = cutoffMs === null
       ? checks
@@ -146,7 +145,7 @@ export function RecentChecks() {
           if (Number.isNaN(parsed.getTime())) return false;
           return parsed.getTime() >= cutoffMs;
         });
-
+ 
     return filtered.map((check) => ({
       rider: check.rider_id || 'Unknown',
       time: formatRelativeTime(check.updated_at),
@@ -155,7 +154,7 @@ export function RecentChecks() {
       checkId: check.check_id || check.rider_id || Math.random().toString(36),
     }));
   }, [checks, cutoffMs]);
-
+ 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center">

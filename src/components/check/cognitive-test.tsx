@@ -6,7 +6,7 @@ import { BrainCircuit, Check, Flag, Play, RefreshCw, Timer } from 'lucide-react'
 import React, { useState, useEffect, useRef } from 'react';
 
 type CognitiveTestProps = {
-  onComplete: (averageLatency: number) => void;
+  onComplete: (averageLatency: number, roundLatencies: number[]) => void;
 };
 
 type GameState = 'idle' | 'waiting' | 'active' | 'finished';
@@ -43,9 +43,10 @@ export function CognitiveTest({ onComplete }: CognitiveTestProps) {
         startRound();
       } else {
         setGameState('finished');
+        const finalLatencies = [...latencies, latency];
         const avgLatency =
-          [...latencies, latency].reduce((a, b) => a + b, 0) / TOTAL_ROUNDS;
-        onComplete(avgLatency);
+          finalLatencies.reduce((a, b) => a + b, 0) / TOTAL_ROUNDS;
+        onComplete(avgLatency, finalLatencies);
       }
     }
   };

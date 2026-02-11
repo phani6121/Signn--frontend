@@ -62,6 +62,7 @@ export default function ShiftCheckPage() {
   const [checkData, setCheckData] = useState<{
     impairmentResult?: AnalyzeRiderFaceForImpairmentOutput | null;
     latency?: number;
+    cognitiveRoundLatencies?: number[];
   }>({});
   const [selectedQuestions, setSelectedQuestions] = useState<BehavioralQuestion[]>([]);
   const [behavioralAnswers, setBehavioralAnswers] = useState<Record<string, string>>({});
@@ -188,13 +189,13 @@ export default function ShiftCheckPage() {
     }
   };
 
-  const handleCognitiveComplete = (latency: number) => {
-    setCheckData((prev) => ({ ...prev, latency }));
+  const handleCognitiveComplete = (latency: number, roundLatencies: number[]) => {
+    setCheckData((prev) => ({ ...prev, latency, cognitiveRoundLatencies: roundLatencies }));
     
     // Save cognitive test to session
     ensureCheckSession().then((sessionId) => {
       if (sessionId) {
-        serverActions.saveCognitiveToSession(sessionId, latency).catch((error) => {
+        serverActions.saveCognitiveToSession(sessionId, latency, roundLatencies).catch((error) => {
           console.error('Failed to save cognitive test:', error);
         });
       }
@@ -232,6 +233,7 @@ export default function ShiftCheckPage() {
     const finalCheckData: serverActions.CheckData = {
         impairmentResult: checkData.impairmentResult,
         latency: checkData.latency,
+        cognitiveRoundLatencies: checkData.cognitiveRoundLatencies,
         behavioralAnswers: (Object.keys(behavioralAnswers).length > 0) ? behavioralAnswers : undefined,
     };
 

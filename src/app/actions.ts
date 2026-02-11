@@ -183,6 +183,7 @@ export async function getRiderById(riderId: string): Promise<Rider | null> {
 export type CheckData = {
   impairmentResult: AnalyzeRiderFaceForImpairmentOutput;
   latency?: number;
+  cognitiveRoundLatencies?: number[];
   behavioralAnswers?: Record<string, string>;
 };
  
@@ -231,12 +232,30 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
  
   // 2. Retrieve the Baseline for this rider (mocked)
   const baselineLatency = 300; // ms
+
+  if (checkData.cognitiveRoundLatencies && checkData.cognitiveRoundLatencies.length) {
+    const rounded = checkData.cognitiveRoundLatencies.map((v) => Math.round(v));
+    const sum = rounded.reduce((acc, v) => acc + v, 0);
+    const recomputedAvg = Math.round(sum / rounded.length);
+    const perDot = rounded.map((v, idx) => `dot_${idx + 1}=${v}ms`).join(' | ');
+    console.log(
+      `[COGNITIVE] ${perDot} | sum=${sum} | avg=${recomputedAvg} | clientAvg=${Math.round(
+        checkData.latency ?? 0
+      )}`
+    );
+  }
  
   // 3. Calculate Delta if latency is available
   const delta =
     checkData.latency
       ? ((checkData.latency - baselineLatency) / baselineLatency) * 100
       : 0;
+
+  console.log(
+    `[COGNITIVE] baseline=${baselineLatency}ms | latency=${Math.round(
+      checkData.latency ?? 0
+    )}ms | delta=${delta.toFixed(2)}% | thresholds: yellow>20 red>40`
+  );
  
   // 4. Determine status
   let status: RiderStatus = 'GREEN';
@@ -277,6 +296,12 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   } else if (delta > 20) {
     status = 'YELLOW';
     reason = 'Cognitive delay detected';
+  }
+
+  if (checkData.latency) {
+    const thresholdDecision =
+      delta > 40 ? 'RED (Critical Cognitive Fatigue)' : delta > 20 ? 'YELLOW (Cognitive delay detected)' : 'PASS';
+    console.log(`[COGNITIVE] threshold_decision=${thresholdDecision}`);
   }
  
   // FOR TESTING: Special rules for specific rider IDs
@@ -561,8 +586,15 @@ export async function saveVisionToSession(checkId: string, visionData: any): Pro
   }
 }
  
-export async function saveCognitiveToSession(checkId: string, latency: number): Promise<{ success: boolean; error?: string }> {
+export async function saveCognitiveToSession(
+  checkId: string,
+  latency: number,
+  roundLatencies?: number[]
+): Promise<{ success: boolean; error?: string }> {
   try {
+    const roundedRounds = Array.isArray(roundLatencies)
+      ? roundLatencies.map((value) => Math.round(value))
+      : undefined;
     const response = await fetch(`${API_BASE_URL}/api/v1/check/session/cognitive`, {
       method: 'PUT',
       headers: {
@@ -571,6 +603,7 @@ export async function saveCognitiveToSession(checkId: string, latency: number): 
       body: JSON.stringify({
         check_id: checkId,
         latency,
+        round_latencies: roundedRounds,
         passed: latency < 300, // Adjust threshold as needed
       }),
     });
