@@ -2,6 +2,7 @@
  
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
   ShieldCheck,
@@ -116,8 +117,10 @@ function formatRelativeTime(iso?: string | null): string {
 function RiderDashboard() {
   const t = useTranslations();
   const { user } = useAuth();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [startingShift, setStartingShift] = useState(false);
   const [shiftType, setShiftType] = useState<'login' | 'logout'>('login');
  
   useEffect(() => {
@@ -177,6 +180,19 @@ function RiderDashboard() {
     dashboard?.health_index ?? (checkCounts.total ? Math.round((checkCounts.green / checkCounts.total) * 100) : 0);
   const startCheckHref =
     user?.user_type === 'employee' ? `/check?shift=${shiftType}` : '/check';
+
+  const handleStartShiftCheck = () => {
+    setStartingShift(true);
+    router.push(startCheckHref);
+  };
+
+  useEffect(() => {
+    if (!startingShift) return;
+    const timer = window.setTimeout(() => {
+      setStartingShift(false);
+    }, 12000);
+    return () => window.clearTimeout(timer);
+  }, [startingShift]);
  
   const recentChecks = useMemo(() => {
     const checks = dashboard?.recent_checks || [];
@@ -202,8 +218,15 @@ function RiderDashboard() {
           </p>
           <p className="mt-4 text-muted-foreground">{description}</p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
-            <Button asChild className="w-full sm:w-auto" size="lg">
-              <Link href={startCheckHref}>Start Shift Check</Link>
+            <Button
+              className="w-full sm:w-auto"
+              size="lg"
+              onClick={handleStartShiftCheck}
+              loading={startingShift}
+              loadingText="Starting shift check..."
+              autoLoading={false}
+            >
+              Start Shift Check
             </Button>
             {user?.user_type === 'employee' && (
               <RadioGroup
