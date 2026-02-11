@@ -42,14 +42,38 @@ const chartConfig = {
   },
 };
 
+const signalsChartConfig = {
+  checks: {
+    label: 'Checks',
+  },
+  fatigue: {
+    label: 'Fatigue',
+    color: 'hsl(22 90% 56%)',
+  },
+  stress: {
+    label: 'Stress',
+    color: 'hsl(262 83% 58%)',
+  },
+  shiftRisk: {
+    label: 'Shift Risk',
+    color: 'hsl(0 84.2% 60.2%)',
+  },
+};
+
 export function FleetStatusChart({
   readiness,
   totalRiders,
   operationalPercentage,
+  fatigueDetections,
+  stressDetections,
+  shiftRiskDetections,
 }: {
   readiness?: FleetReadinessCounts;
   totalRiders?: number;
   operationalPercentage?: number;
+  fatigueDetections?: number;
+  stressDetections?: number;
+  shiftRiskDetections?: number;
 }) {
   const chartData = React.useMemo(() => {
     const green = readiness?.green ?? 0;
@@ -63,9 +87,7 @@ export function FleetStatusChart({
   }, [readiness]);
 
   const totalRidersValue = React.useMemo(() => {
-    if (typeof totalRiders === 'number') {
-      return totalRiders;
-    }
+    if (typeof totalRiders === 'number') return totalRiders;
     return chartData.reduce((acc, curr) => acc + curr.riders, 0);
   }, [chartData, totalRiders]);
 
@@ -74,9 +96,7 @@ export function FleetStatusChart({
     const yellow = readiness?.yellow ?? 0;
     const red = readiness?.red ?? 0;
     const total = green + yellow + red;
-    if (!total) {
-      return null;
-    }
+    if (!total) return null;
     return Math.round(((green + yellow) / total) * 100);
   }, [readiness]);
 
@@ -90,12 +110,42 @@ export function FleetStatusChart({
       ? `${resolvedOperationalPercentage}% of fleet is fully operational`
       : 'Fleet readiness is updating...';
 
+  // -----------------------------
+  // NEW: Risk Signal Distribution chart
+  // -----------------------------
+  const signalData = React.useMemo(
+    () => [
+      {
+        signal: 'Fatigue',
+        checks: fatigueDetections ?? 0,
+        fill: 'var(--color-fatigue)',
+      },
+      {
+        signal: 'Stress',
+        checks: stressDetections ?? 0,
+        fill: 'var(--color-stress)',
+      },
+      {
+        signal: 'Shift Risk',
+        checks: shiftRiskDetections ?? 0,
+        fill: 'var(--color-shiftRisk)',
+      },
+    ],
+    [fatigueDetections, stressDetections, shiftRiskDetections]
+  );
+
+  const totalSignals = React.useMemo(
+    () => signalData.reduce((sum, item) => sum + item.checks, 0),
+    [signalData]
+  );
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
         <CardTitle>Fleet Readiness Status</CardTitle>
         <CardDescription>Live data from all active riders</CardDescription>
       </CardHeader>
+
       <CardContent className="flex-1 pb-0">
         <ChartContainer
           config={chartConfig}
@@ -140,19 +190,96 @@ export function FleetStatusChart({
                       </text>
                     );
                   }
+                  return null;
                 }}
               />
             </Pie>
           </PieChart>
         </ChartContainer>
       </CardContent>
+
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="flex items-center gap-2 font-medium leading-none">
           {operationalText}
           <TrendingUp className="h-4 w-4" />
         </div>
+
         <div className="leading-none text-muted-foreground">
           Showing total riders for today
+        </div>
+
+        {/* NEW section */}
+        <div className="mt-3 w-full border-t pt-3">
+          <div className="mb-2 text-center text-xs font-medium text-muted-foreground">
+            Risk Signal Distribution
+          </div>
+
+          <ChartContainer
+            config={signalsChartConfig}
+            className="mx-auto aspect-square max-h-[250px]"
+          >
+            <PieChart>
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel />}
+              />
+              <Pie
+                data={signalData}
+                dataKey="checks"
+                nameKey="signal"
+                innerRadius={60}
+                strokeWidth={5}
+              >
+                <Label
+                  content={({ viewBox }) => {
+                    if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                      return (
+                        <text
+                          x={viewBox.cx}
+                          y={viewBox.cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                        >
+                          <tspan
+                            x={viewBox.cx}
+                            y={viewBox.cy}
+                            className="fill-foreground text-xl font-bold"
+                          >
+                            {totalSignals.toLocaleString()}
+                          </tspan>
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy || 0) + 18}
+                            className="fill-muted-foreground text-[10px]"
+                          >
+                            Detections
+                          </tspan>
+                        </text>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+
+          <div className="mt-3 flex items-center justify-center gap-3 text-sm">
+            <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-[hsl(22_90%_56%)]" />
+              Fatigue {fatigueDetections ?? 0}
+            </div>
+
+            <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-[hsl(262_83%_58%)]" />
+              Stress {stressDetections ?? 0}
+            </div>
+
+            <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-[hsl(0_84.2%_60.2%)]" />
+              Shift Risk {shiftRiskDetections ?? 0}
+            </div>
+          </div>
         </div>
       </CardFooter>
     </Card>
