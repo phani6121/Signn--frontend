@@ -157,14 +157,6 @@ export default function ShiftCheckPage() {
       setVisionAnalysisResult(finalResult);
       setCheckData((prev) => ({ ...prev, impairmentResult: finalResult }));
 
-      // Save vision analysis to session
-      const sessionId = await ensureCheckSession();
-      if (sessionId) {
-        serverActions.saveVisionToSession(sessionId, finalResult).catch((error) => {
-          console.error('Failed to save vision analysis:', error);
-        });
-      }
-
       // Determine preliminary status based on the (potentially overridden) result
       if (finalResult.eyewearDetected) {
         setPreliminaryStatus('RED');
@@ -191,31 +183,13 @@ export default function ShiftCheckPage() {
 
   const handleCognitiveComplete = (latency: number, roundLatencies: number[]) => {
     setCheckData((prev) => ({ ...prev, latency, cognitiveRoundLatencies: roundLatencies }));
-    
-    // Save cognitive test to session
-    ensureCheckSession().then((sessionId) => {
-      if (sessionId) {
-        serverActions.saveCognitiveToSession(sessionId, latency, roundLatencies).catch((error) => {
-          console.error('Failed to save cognitive test:', error);
-        });
-      }
-    });
-    
+
     setTimeout(goToNextStep, 500);
   };
   
   const handleConsent = async () => {
-    const sessionId = await ensureCheckSession();
-    if (sessionId) {
-      await serverActions.saveConsentToSession(sessionId, true);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Session Error',
-        description: 'Unable to start check session. Please try again.',
-      });
-      return;
-    }
+    // Do not create a check session at consent time.
+    // Session is created after face scan starts/completes.
     setCurrentStep('vision');
   }
 
@@ -247,8 +221,13 @@ export default function ShiftCheckPage() {
       return;
     }
 
-    // Save behavioral answers before submitting
-    if (sessionId && Object.keys(behavioralAnswers).length > 0) {
+    // Persist all completed steps only at final submit to avoid storing abandoned/incomplete checks.
+    await serverActions.saveConsentToSession(sessionId, true);
+    await serverActions.saveVisionToSession(sessionId, checkData.impairmentResult);
+    if (typeof checkData.latency === 'number' && Number.isFinite(checkData.latency)) {
+      await serverActions.saveCognitiveToSession(sessionId, checkData.latency, checkData.cognitiveRoundLatencies);
+    }
+    if (Object.keys(behavioralAnswers).length > 0) {
       const answers = Object.entries(behavioralAnswers).map(([questionId, answer]) => ({
         question_id: questionId,
         question: '',

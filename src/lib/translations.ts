@@ -49,7 +49,7 @@ export const translations = {
     raj: 'सवार ID',
   },
   not_a_rider: {
-    en: 'Not a rider?',
+    en: 'Not a User?',
     hi: 'सवार नहीं हैं?',
     te: 'రైడర్ కాదా?',
     ta: 'சவாரி செய்பவர் இல்லையா?',
@@ -65,7 +65,7 @@ export const translations = {
     raj: 'सवार नहीं हो?',
   },
   rider_access: {
-    en: 'Rider Access',
+    en: 'User Access',
     hi: 'सवार एक्सेस',
     te: 'రైడర్ యాక్సెస్',
     ta: 'சவாரி செய்பவர் அணுகல்',
@@ -81,7 +81,7 @@ export const translations = {
     raj: 'सवार पहुंच',
   },
   enter_rider_id: {
-    en: 'Enter your rider ID to access your dashboard',
+    en: 'Enter your user ID to access your dashboard',
     hi: 'अपने डैशबोर्ड तक पहुंचने के लिए अपनी सवार आईडी दर्ज करें',
     te: 'మీ డాష్‌బోర్డ్‌ను యాక్సెస్ చేయడానికి మీ రైడర్ ఐడిని నమోదు చేయండి',
     ta: 'உங்கள் டாஷ்போர்டை அணுக உங்கள் சவாரி செய்பவர் ஐடியை உள்ளிடவும்',

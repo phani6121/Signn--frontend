@@ -36,7 +36,7 @@ const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY;
  
 type RecentCheck = {
   rider_id?: string | null;
-  status?: RiderStatus | null;
+  status?: RiderStatus | string | null;
   reason?: string | null;
   check_id?: string | null;
   updated_at?: string | null;
@@ -146,13 +146,21 @@ export function RecentChecks() {
           return parsed.getTime() >= cutoffMs;
         });
  
-    return filtered.map((check) => ({
+    return filtered
+    .map((check) => {
+      const normalizedStatus = (check.status || '').toUpperCase();
+      if (normalizedStatus !== 'GREEN' && normalizedStatus !== 'YELLOW' && normalizedStatus !== 'RED') {
+        return null;
+      }
+      return {
       rider: check.rider_id || 'Unknown',
       time: formatRelativeTime(check.updated_at),
-      status: (check.status || 'GREEN') as RiderStatus,
+      status: normalizedStatus as RiderStatus,
       reason: check.reason || '-',
       checkId: check.check_id || check.rider_id || Math.random().toString(36),
-    }));
+      };
+    })
+    .filter((row): row is { rider: string; time: string; status: RiderStatus; reason: string; checkId: string } => row !== null);
   }, [checks, cutoffMs]);
  
   return (
