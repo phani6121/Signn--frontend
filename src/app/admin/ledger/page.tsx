@@ -68,6 +68,11 @@ type LedgerApiItem = {
   reason?: string | null;
   check_id?: string | null;
   updated_at?: string | null;
+  latency?: number | string | null;
+  latency_ms?: number | string | null;
+  cognitive_test?: {
+    latency?: number | string | null;
+  } | null;
 };
 
 type LedgerApiResponse = {
@@ -88,6 +93,22 @@ export default function AdminLedgerPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [riderQuery, setRiderQuery] = useState('');
   const [riderIdFilter, setRiderIdFilter] = useState<string | null>(null);
+
+  const parseLatency = (item: LedgerApiItem): number | undefined => {
+    const raw = item.latency_ms ?? item.latency ?? item.cognitive_test?.latency;
+    if (raw === null || raw === undefined) return undefined;
+    if (typeof raw === 'number') return Number.isFinite(raw) ? raw : undefined;
+    if (typeof raw === 'string' && raw.trim() === '') return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const formatLatency = (value: number): string => {
+    const truncated = Math.trunc(value * 1000) / 1000;
+    return Number.isInteger(truncated)
+      ? String(truncated)
+      : truncated.toFixed(3).replace(/\.?0+$/, '');
+  };
 
   const handleViewDetails = (entry: ReadinessCheck) => {
     setSelectedEntry(entry);
@@ -158,11 +179,17 @@ export default function AdminLedgerPage() {
         }
         const data = (await response.json()) as LedgerApiResponse;
         const mapped: ReadinessCheck[] = (data.items || []).map((item) => ({
+          // Never default missing status to GREEN; incomplete checks should not appear passed.
+          status: (
+            item.status === 'GREEN' || item.status === 'YELLOW' || item.status === 'RED'
+              ? item.status
+              : 'YELLOW'
+          ) as ReadinessCheck['status'],
           id: item.check_id || 'unknown',
           riderId: item.rider_id || 'Unknown',
-          status: (item.status || 'GREEN') as ReadinessCheck['status'],
-          reason: item.reason || '—',
+          reason: item.reason || 'Assessment incomplete',
           timestamp: item.updated_at || new Date().toISOString(),
+          latency: parseLatency(item),
         }));
         if (!cancelled) {
           setEntries(mapped);
@@ -190,6 +217,8 @@ export default function AdminLedgerPage() {
   }, [page, limit, statusFilter, riderIdFilter]);
 
   const visibleEntries = useMemo(() => entries, [entries]);
+  const canGoPrev = page > 1;
+  const canGoNext = visibleEntries.length === limit;
 
   const ledgerTable = (
     <Card>
@@ -253,7 +282,7 @@ export default function AdminLedgerPage() {
                     {entry.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{entry.latency}ms</TableCell>
+                <TableCell>{entry.latency !== undefined ? `${formatLatency(entry.latency)}ms` : '--'}</TableCell>
                 <TableCell>{entry.reason}</TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -283,8 +312,28 @@ export default function AdminLedgerPage() {
         </Table>
       </CardContent>
       <CardFooter>
-        <div className="text-xs text-muted-foreground">
-          Showing <strong>{visibleEntries.length}</strong> entries
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            Page <strong>{page}</strong> · Showing <strong>{visibleEntries.length}</strong> entries
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canGoPrev || loading}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canGoNext || loading}
+              onClick={() => setPage((prev) => prev + 1)}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </CardFooter>
     </Card>
@@ -380,7 +429,7 @@ export default function AdminLedgerPage() {
                             <p><strong>User ID:</strong> {selectedEntry.riderId}</p>
                             <p><strong>Status:</strong> <Badge variant={selectedEntry.status === 'GREEN' ? 'default' : selectedEntry.status === 'YELLOW' ? 'secondary' : 'destructive'}>{selectedEntry.status}</Badge></p>
                             <p><strong>Reason:</strong> {selectedEntry.reason}</p>
-                            <p><strong>Cognitive Latency:</strong> {selectedEntry.latency}ms</p>
+                            <p><strong>Cognitive Latency:</strong> {selectedEntry.latency !== undefined ? `${formatLatency(selectedEntry.latency)}ms` : '--'}</p>
                         </div>
                     </div>
                     <div>

@@ -204,7 +204,7 @@ export default function LoginPage() {
                   {isLoggingIn && loginRole === 'rider' ? (
                     <Loader2 className="animate-spin" />
                   ) : (
-                    'Login as Rider'
+                    'Login'
                   )}
                 </Button>
               </form>

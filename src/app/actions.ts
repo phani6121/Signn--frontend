@@ -232,6 +232,7 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
  
   // 2. Retrieve the Baseline for this rider (mocked)
   const baselineLatency = 300; // ms
+  const requiredBehavioralAnswers = Math.min(5, behavioralQuestions.length);
 
   if (checkData.cognitiveRoundLatencies && checkData.cognitiveRoundLatencies.length) {
     const rounded = checkData.cognitiveRoundLatencies.map((v) => Math.round(v));
@@ -246,9 +247,13 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   }
  
   // 3. Calculate Delta if latency is available
+  const hasLatency =
+    typeof checkData.latency === 'number' &&
+    Number.isFinite(checkData.latency) &&
+    checkData.latency > 0;
   const delta =
-    checkData.latency
-      ? ((checkData.latency - baselineLatency) / baselineLatency) * 100
+    hasLatency
+      ? (((checkData.latency as number) - baselineLatency) / baselineLatency) * 100
       : 0;
 
   console.log(
@@ -261,6 +266,8 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   let status: RiderStatus = 'GREEN';
   let reason = 'Clear';
  
+  const behavioralAnswerCount = Object.keys(checkData.behavioralAnswers || {}).length;
+  const behavioralCompleted = behavioralAnswerCount >= requiredBehavioralAnswers;
   let behavioralFailure = false;
   if (checkData.behavioralAnswers && Object.keys(checkData.behavioralAnswers).length > 0) {
       const questionMap = new Map(behavioralQuestions.map(q => [q.id, q]));
@@ -273,6 +280,14 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
           }
       }
   }
+  const behavioralPassed = behavioralCompleted && !behavioralFailure;
+  const faceScanClear =
+    !impairmentResult.eyewearDetected &&
+    !impairmentResult.feverDetected &&
+    !impairmentResult.intoxicationDetected &&
+    !impairmentResult.fatigueDetected &&
+    !impairmentResult.stressDetected;
+  const cognitivePassed = hasLatency && delta <= 20;
  
   if (impairmentResult.eyewearDetected) {
     status = 'RED';
@@ -296,28 +311,45 @@ export async function evaluateGatekeeperStatus(checkData: CheckData, riderId?: s
   } else if (delta > 20) {
     status = 'YELLOW';
     reason = 'Cognitive delay detected';
+  } else if (!hasLatency) {
+    status = 'YELLOW';
+    reason = 'Cognitive assessment incomplete';
+  } else if (!behavioralCompleted) {
+    status = 'YELLOW';
+    reason = 'Behavioral assessment incomplete';
+  } else if (!behavioralPassed) {
+    status = 'RED';
+    reason = 'Failed behavioral assessment';
+  } else if (!(faceScanClear && cognitivePassed && behavioralPassed)) {
+    status = 'YELLOW';
+    reason = 'Readiness criteria not fully met';
+  } else {
+    status = 'GREEN';
+    reason = 'Clear';
   }
 
-  if (checkData.latency) {
+  if (hasLatency) {
     const thresholdDecision =
       delta > 40 ? 'RED (Critical Cognitive Fatigue)' : delta > 20 ? 'YELLOW (Cognitive delay detected)' : 'PASS';
     console.log(`[COGNITIVE] threshold_decision=${thresholdDecision}`);
   }
  
-  // FOR TESTING: Special rules for specific rider IDs
-  if (riderId === 'rider-789') {
-    status = 'GREEN';
-    reason = 'Clear (Testing Override)';
-    // Also clean up impairment result for consistency, as it may still contain failure signals
-    impairmentResult.fatigueDetected = false;
-    impairmentResult.intoxicationDetected = false;
-    impairmentResult.stressDetected = false;
-    impairmentResult.feverDetected = false;
-  } else if (riderId === 'rider-123') {
-    status = 'RED';
-    reason = 'Critical Cognitive Fatigue';
-    // Also mock the impairment result to be consistent with the reason
-    impairmentResult.fatigueDetected = true;
+  // Optional testing overrides. Disabled by default.
+  const enableTestingOverrides = process.env.ENABLE_TESTING_OVERRIDES === 'true';
+  if (enableTestingOverrides) {
+    if (riderId === 'rider-789') {
+      status = 'GREEN';
+      reason = 'Clear (Testing Override)';
+      // Keep impairment output aligned with the forced override.
+      impairmentResult.fatigueDetected = false;
+      impairmentResult.intoxicationDetected = false;
+      impairmentResult.stressDetected = false;
+      impairmentResult.feverDetected = false;
+    } else if (riderId === 'rider-123') {
+      status = 'RED';
+      reason = 'Critical Cognitive Fatigue';
+      impairmentResult.fatigueDetected = true;
+    }
   }
  
  
