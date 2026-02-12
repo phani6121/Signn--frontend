@@ -44,7 +44,7 @@ type Step = 'consent' | 'vision' | 'vision-result' | 'cognitive' | 'behavioral' 
 
 const STEPS: { id: Exclude<Step, 'vision-result' | 'submitting'>; title: string; icon: React.ReactNode }[] = [
   { id: 'consent', title: 'Privacy Consent', icon: <FileCheck2 /> },
-  { id: 'vision', title: 'Vision Analysis', icon: <Camera /> },
+  { id: 'vision', title: 'Readiness Step', icon: <Camera /> },
   { id: 'cognitive', title: 'Cognitive Test', icon: <BrainCircuit /> },
   {
     id: 'behavioral',
@@ -257,9 +257,9 @@ export default function ShiftCheckPage() {
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold">Shift Readiness Check</h1>
+        <h1 className="text-3xl font-bold">Readiness Check</h1>
         <p className="text-muted-foreground">
-          Complete the following steps to start your shift.
+          Quick 15-second readiness check.
         </p>
         <Progress value={progress} className="mt-4" />
         <p className="text-sm mt-2 text-muted-foreground">{getStepTitle()}</p>

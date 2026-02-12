@@ -69,8 +69,11 @@ export function RecentChecks() {
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
+    let inFlight = false;
 
     const loadChecks = async () => {
+      if (inFlight) return;
+      inFlight = true;
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -85,6 +88,7 @@ export function RecentChecks() {
           headers: {
             ...(ADMIN_API_KEY ? { Authorization: `Bearer ${ADMIN_API_KEY}` } : {}),
           },
+          cache: 'no-store',
         });
 
         if (!response.ok) throw new Error(`Request failed: ${response.status}`);
@@ -97,12 +101,13 @@ export function RecentChecks() {
       } catch {
         if (!cancelled) setError('Unable to load recent checks.');
       } finally {
+        inFlight = false;
         if (!cancelled) setLoading(false);
       }
     };
 
     loadChecks();
-    timer = window.setInterval(loadChecks, 5000);
+    timer = window.setInterval(loadChecks, 15000);
 
     return () => {
       cancelled = true;

@@ -85,6 +85,7 @@ type LedgerApiResponse = {
 export default function AdminLedgerPage() {
   const t = useTranslations();
   const [selectedEntry, setSelectedEntry] = useState<ReadinessCheck | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [entries, setEntries] = useState<ReadinessCheck[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export default function AdminLedgerPage() {
 
   const handleViewDetails = (entry: ReadinessCheck) => {
     setSelectedEntry(entry);
+    setIsDetailsOpen(true);
   }
 
   const handleExport = () => {
@@ -285,7 +287,7 @@ export default function AdminLedgerPage() {
                 <TableCell>{entry.latency !== undefined ? `${formatLatency(entry.latency)}ms` : '--'}</TableCell>
                 <TableCell>{entry.reason}</TableCell>
                 <TableCell>
-                  <DropdownMenu>
+                  <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <Button
                         aria-haspopup="true"
@@ -298,7 +300,11 @@ export default function AdminLedgerPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onSelect={() => handleViewDetails(entry)}>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          window.setTimeout(() => handleViewDetails(entry), 0);
+                        }}
+                      >
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
@@ -375,7 +381,7 @@ export default function AdminLedgerPage() {
               }}
             />
           </div>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-9 gap-1">
                 <ListFilter className="h-3.5 w-3.5" />
@@ -407,13 +413,20 @@ export default function AdminLedgerPage() {
       <TabsContent value="red">{ledgerTable}</TabsContent>
     </Tabs>
 
-    {selectedEntry && (
-        <Dialog open={!!selectedEntry} onOpenChange={(isOpen) => !isOpen && setSelectedEntry(null)}>
+    <Dialog
+      open={isDetailsOpen}
+      onOpenChange={(isOpen) => {
+        setIsDetailsOpen(isOpen);
+        if (!isOpen) {
+          setSelectedEntry(null);
+        }
+      }}
+    >
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Check Details: {selectedEntry.id}</DialogTitle>
+                    <DialogTitle>Check Details: {selectedEntry?.id}</DialogTitle>
                     <DialogDescription>
-                       Audit trail for check conducted on {new Date(selectedEntry.timestamp).toLocaleString()}.
+                       Audit trail for check conducted on {selectedEntry ? new Date(selectedEntry.timestamp).toLocaleString() : '--'}.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
@@ -426,19 +439,18 @@ export default function AdminLedgerPage() {
                             </p>
                         </div>
                         <div className="space-y-2 text-sm">
-                            <p><strong>User ID:</strong> {selectedEntry.riderId}</p>
-                            <p><strong>Status:</strong> <Badge variant={selectedEntry.status === 'GREEN' ? 'default' : selectedEntry.status === 'YELLOW' ? 'secondary' : 'destructive'}>{selectedEntry.status}</Badge></p>
-                            <p><strong>Reason:</strong> {selectedEntry.reason}</p>
-                            <p><strong>Cognitive Latency:</strong> {selectedEntry.latency !== undefined ? `${formatLatency(selectedEntry.latency)}ms` : '--'}</p>
+                            <p><strong>User ID:</strong> {selectedEntry?.riderId ?? '--'}</p>
+                            <p><strong>Status:</strong> <Badge variant={selectedEntry?.status === 'GREEN' ? 'default' : selectedEntry?.status === 'YELLOW' ? 'secondary' : 'destructive'}>{selectedEntry?.status ?? '--'}</Badge></p>
+                            <p><strong>Reason:</strong> {selectedEntry?.reason ?? '--'}</p>
+                            <p><strong>Cognitive Latency:</strong> {selectedEntry && selectedEntry.latency !== undefined ? `${formatLatency(selectedEntry.latency)}ms` : '--'}</p>
                         </div>
                     </div>
                     <div>
-                        {selectedEntry.impairment && <AnalysisDetails impairmentResult={selectedEntry.impairment} />}
+                        {selectedEntry?.impairment && <AnalysisDetails impairmentResult={selectedEntry.impairment} />}
                     </div>
                 </div>
             </DialogContent>
         </Dialog>
-    )}
     </>
   );
 }
