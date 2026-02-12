@@ -368,7 +368,7 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-center">AI Vision Analysis</CardTitle>
+        <CardTitle className="text-center">Quick Readiness Check</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col items-center gap-4">
@@ -406,7 +406,7 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
         </div>
 
         <p className="text-sm text-muted-foreground text-center">
-          Click start, keep your face centered, blink slowly 3–5 times.
+          Keep your face visible for a few seconds.
         </p>
 
         <Button
@@ -416,7 +416,7 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
         >
           {hasCameraPermission
             ? status === 'idle'
-              ? 'Start 15-Second Scan'
+              ? 'Start Check'
               : status === 'scanning'
               ? 'Scanning...'
               : 'Done'

@@ -113,6 +113,12 @@ function formatRelativeTime(iso?: string | null): string {
   if (diffDays === 1) return 'Yesterday';
   return `${diffDays} days ago`;
 }
+
+function formatLatencyMs(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '--';
+  const truncated = Math.trunc(value * 1000) / 1000;
+  return `${Number.isInteger(truncated) ? String(truncated) : truncated.toFixed(3).replace(/\.?0+$/, '')}ms`;
+}
  
 function RiderDashboard() {
   const t = useTranslations();
@@ -128,16 +134,21 @@ function RiderDashboard() {
     if (!userId) return;
  
     let cancelled = false;
+    let timer: number | undefined;
     const loadDashboard = async () => {
       setLoading(true);
       try {
+        const params = new URLSearchParams();
+        params.set('user_id', userId);
+        if (user?.username) {
+          params.set('username', user.username);
+        }
         const response = await fetch(
-          `${API_BASE_URL}/api/v1/user/dashboard?user_id=${encodeURIComponent(
-            userId
-          )}`,
+          `${API_BASE_URL}/api/v1/user/dashboard?${params.toString()}&_t=${Date.now()}`,
           {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
           }
         );
  
@@ -162,8 +173,15 @@ function RiderDashboard() {
     };
  
     loadDashboard();
+    timer = window.setInterval(loadDashboard, 15000);
+    const handleFocus = () => loadDashboard();
+    window.addEventListener('focus', handleFocus);
     return () => {
       cancelled = true;
+      if (timer) {
+        window.clearInterval(timer);
+      }
+      window.removeEventListener('focus', handleFocus);
     };
   }, [user]);
  
@@ -200,7 +218,7 @@ function RiderDashboard() {
     return checks.map((check) => ({
       time: formatRelativeTime(check.timestamp),
       status: (check.overall_status || 'GREEN') as RiderStatus,
-      latency: check.latency_ms ? `${check.latency_ms}ms` : '--',
+      latency: formatLatencyMs(check.latency_ms),
     }));
   }, [dashboard]);
  
