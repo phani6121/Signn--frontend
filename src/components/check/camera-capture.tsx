@@ -384,9 +384,9 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
           {status === 'scanning' && (
             <div className="absolute inset-0 flex flex-col justify-end gap-4 p-4 bg-black/60">
               <div className="flex justify-around">
-                <GaugeMeter label="Health" value={healthValue} variant="health" />
-                <GaugeMeter label="Stress" value={stressValue} variant="stress" />
-                <GaugeMeter label="Mood" value={moodValue} variant="mood" />
+                <GaugeMeter label="Focus" value={healthValue} variant="health" />
+                <GaugeMeter label="Stress Level" value={stressValue} variant="stress" />
+                <GaugeMeter label="Energy" value={moodValue} variant="mood" />
               </div>
 
               <Progress value={scanProgress} className="h-3" />
