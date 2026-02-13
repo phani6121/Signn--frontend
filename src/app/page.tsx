@@ -2,7 +2,7 @@
  
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ArrowUpRight,
   ShieldCheck,
@@ -35,6 +35,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { useAuth } from '@/context/auth-context';
 import { AnimatedRadialChart } from '@/components/animated-radial-chart';
 import { useTranslations } from 'next-intl';
+import { getLocaleFromPathname, withLocale } from '@/i18n/config';
  
 // This component is a combination of the original /app/(app)/layout.tsx and /app/(app)/page.tsx
 // to work around a Next.js routing conflict with the AuthProvider.
@@ -69,49 +70,30 @@ type DashboardResponse = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
  
-const statusConfig = {
-  GREEN: {
-    icon: <ShieldCheck className="h-6 w-6 text-green-500" />,
-    text: 'Ready to Go',
-    description: "You've passed the readiness check and are cleared to start your shift.",
-    badge: <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>,
-  },
-  YELLOW: {
-    icon: <ShieldAlert className="h-6 w-6 text-yellow-500" />,
-    text: 'Proceed with Caution',
-    description: 'Minor fatigue detected. Low-speed, local access only.',
-    badge: <Badge className="bg-yellow-500 hover:bg-yellow-600">Limited</Badge>,
-  },
-  RED: {
-    icon: <ShieldOff className="h-6 w-6 text-red-500" />,
-    text: 'Mandatory Rest',
-    description:
-      'Significant impairment detected. Your access is temporarily blocked.',
-    badge: <Badge variant="destructive">Blocked</Badge>,
-  },
-};
- 
 const fallbackRecentChecks: {
   time: string;
   status: RiderStatus;
   latency: string;
 }[] = [];
  
-function formatRelativeTime(iso?: string | null): string {
-  if (!iso) return 'No recent checks';
+function formatRelativeTime(
+  iso: string | null | undefined,
+  t: ReturnType<typeof useTranslations>
+): string {
+  if (!iso) return t('no_recent_checks');
   const hasTimezone = /[Zz]|[+-]\d{2}:\d{2}$/.test(iso);
   const normalized = hasTimezone ? iso : `${iso}Z`;
   const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) return 'No recent checks';
+  if (Number.isNaN(date.getTime())) return t('no_recent_checks');
   const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+  if (diffMinutes < 1) return t('just_now');
+  if (diffMinutes < 60) return t('minutes_ago', {count: diffMinutes});
   const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffHours < 24) return t('hours_ago', {count: diffHours});
   const diffDays = Math.round(diffHours / 24);
-  if (diffDays === 1) return 'Yesterday';
-  return `${diffDays} days ago`;
+  if (diffDays === 1) return t('yesterday');
+  return t('days_ago', {count: diffDays});
 }
 
 function formatLatencyMs(value?: number | null): string {
@@ -124,10 +106,32 @@ function RiderDashboard() {
   const t = useTranslations();
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [startingShift, setStartingShift] = useState(false);
   const [shiftType, setShiftType] = useState<'login' | 'logout'>('login');
+  const statusConfig = {
+    GREEN: {
+      icon: <ShieldCheck className="h-6 w-6 text-green-500" />,
+      text: t('status_ready_to_go'),
+      description: t('status_desc_green'),
+      badge: <Badge className="bg-green-500 hover:bg-green-600">{t('badge_active')}</Badge>,
+    },
+    YELLOW: {
+      icon: <ShieldAlert className="h-6 w-6 text-yellow-500" />,
+      text: t('status_proceed_with_caution'),
+      description: t('status_desc_yellow'),
+      badge: <Badge className="bg-yellow-500 hover:bg-yellow-600">{t('badge_limited')}</Badge>,
+    },
+    RED: {
+      icon: <ShieldOff className="h-6 w-6 text-red-500" />,
+      text: t('status_mandatory_rest'),
+      description: t('status_desc_red'),
+      badge: <Badge variant="destructive">{t('badge_blocked')}</Badge>,
+    },
+  };
  
   useEffect(() => {
     const userId = user?.id || user?.username;
@@ -186,7 +190,7 @@ function RiderDashboard() {
   }, [user]);
  
   const currentStatus = (dashboard?.readiness_status || 'GREEN') as RiderStatus;
-  const lastCheckTime = formatRelativeTime(dashboard?.last_check_at);
+  const lastCheckTime = formatRelativeTime(dashboard?.last_check_at, t);
   const { icon, text, description } = statusConfig[currentStatus];
   const checkCounts = dashboard?.check_counts ?? {
     green: 0,
@@ -201,7 +205,7 @@ function RiderDashboard() {
 
   const handleStartShiftCheck = () => {
     setStartingShift(true);
-    router.push(startCheckHref);
+    router.push(withLocale(startCheckHref, locale));
   };
 
   useEffect(() => {
@@ -216,11 +220,11 @@ function RiderDashboard() {
     const checks = dashboard?.recent_checks || [];
     if (checks.length === 0) return fallbackRecentChecks;
     return checks.map((check) => ({
-      time: formatRelativeTime(check.timestamp),
+      time: formatRelativeTime(check.timestamp, t),
       status: (check.overall_status || 'GREEN') as RiderStatus,
       latency: formatLatencyMs(check.latency_ms),
     }));
-  }, [dashboard]);
+  }, [dashboard, t]);
  
   return (
     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
@@ -232,7 +236,7 @@ function RiderDashboard() {
         <CardContent>
           <div className="text-4xl font-bold">{text}</div>
           <p className="text-xs text-muted-foreground">
-            Last check: {lastCheckTime}
+            {t('last_check_prefix')}: {lastCheckTime}
           </p>
           <p className="mt-4 text-muted-foreground">{description}</p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -241,10 +245,10 @@ function RiderDashboard() {
               size="lg"
               onClick={handleStartShiftCheck}
               loading={startingShift}
-              loadingText="Starting shift check..."
+              loadingText={t('start_shift_check_loading')}
               autoLoading={false}
             >
-              Start Shift Check
+              {t('start_shift_check')}
             </Button>
             {user?.user_type === 'employee' && (
               <RadioGroup
@@ -258,18 +262,18 @@ function RiderDashboard() {
               >
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="login" id="login-time" />
-                  <Label htmlFor="login-time">Shift Login</Label>
+                  <Label htmlFor="login-time">{t('shift_login')}</Label>
                 </div>
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value="logout" id="logout-time" />
-                  <Label htmlFor="logout-time">Shift Logout</Label>
+                  <Label htmlFor="logout-time">{t('shift_logout')}</Label>
                 </div>
               </RadioGroup>
             )}
           </div>
           {loading && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Loading latest dashboard...
+              {t('loading_latest_dashboard')}
             </p>
           )}
         </CardContent>
@@ -277,28 +281,28 @@ function RiderDashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle>Health Index</CardTitle>
-            <CardDescription>Last 30 checks</CardDescription>
+            <CardTitle>{t('health_index')}</CardTitle>
+            <CardDescription>{t('last_30_checks')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-4">
           <AnimatedRadialChart value={healthIndex} size={220} />
           <div className="flex w-full justify-between text-sm text-muted-foreground">
-            <span className="font-semibold text-green-600">Green: {checkCounts.green}</span>
-            <span className="font-semibold text-yellow-600">Yellow: {checkCounts.yellow}</span>
-            <span className="font-semibold text-red-600">Red: {checkCounts.red}</span>
+            <span className="font-semibold text-green-600">{t('green_label')}: {checkCounts.green}</span>
+            <span className="font-semibold text-yellow-600">{t('yellow_label')}: {checkCounts.yellow}</span>
+            <span className="font-semibold text-red-600">{t('red_label')}: {checkCounts.red}</span>
           </div>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start">
           <div className="grid gap-2">
-            <CardTitle>Recent Checks</CardTitle>
-            <CardDescription>Your last 3 readiness checks.</CardDescription>
+            <CardTitle>{t('recent_checks')}</CardTitle>
+            <CardDescription>{t('recent_checks_subtitle')}</CardDescription>
           </div>
-          <Button asChild size="sm" className="ml-auto gap-1">
+          <Button asChild size="sm" className="gap-1 self-start sm:ml-auto">
             <Link href="#">
-              View All
+              {t('view_all')}
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -307,16 +311,16 @@ function RiderDashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Latency</TableHead>
+                <TableHead>{t('time')}</TableHead>
+                <TableHead>{t('status')}</TableHead>
+                <TableHead className="text-right">{t('latency')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {recentChecks.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    No recent checks yet.
+                    {t('no_recent_checks_yet')}
                   </TableCell>
                 </TableRow>
               ) : (

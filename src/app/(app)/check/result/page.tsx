@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -23,8 +23,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AnalysisDetails } from '@/components/check/analysis-details';
 import { DetectionReport } from '@/components/check/detection-report';
 import type { DetectionResult } from '@/app/actions';
+import { getLocaleFromPathname, withLocale } from '@/i18n/config';
+import { useLanguage } from '@/context/language-context';
+import { getMessagesForLocale } from '@/lib/i18n';
 
 function ResultContent() {
+  const { language } = useLanguage();
+  const messages = getMessagesForLocale(language);
+  const t = (key: string, values?: Record<string, string>) => {
+    let text = messages[key] || key;
+    if (!values) return text;
+    for (const [name, value] of Object.entries(values)) {
+      text = text.replaceAll(`{${name}}`, value);
+    }
+    return text;
+  };
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const searchParams = useSearchParams();
   const status = searchParams.get('status') as RiderStatus | null;
   const reason = searchParams.get('reason');
@@ -94,12 +109,12 @@ function ResultContent() {
     return (
       <Card className="w-full max-w-lg text-center">
         <CardHeader>
-          <CardTitle>Invalid Result</CardTitle>
+          <CardTitle>{t('invalid_result_title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>Could not determine the check result. Please try again.</p>
+          <p>{t('invalid_result_desc')}</p>
           <Button asChild className="mt-4">
-            <Link href="/check">Try Again</Link>
+            <Link href={withLocale('/check', locale)}>{t('try_again')}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -107,40 +122,56 @@ function ResultContent() {
   }
 
   const getRedStatusDescription = (reason: string | null): string => {
-    const baseMessage = "Your app access is temporarily blocked for your safety.";
-    const restMessage = "Please rest for 15 minutes before re-checking."
+    const baseMessage = t('result_base_block_message');
+    const restMessage = t('result_rest_message');
     switch (reason) {
       case 'Critical Cognitive Fatigue':
-        return `Your reaction time was significantly slower than your baseline, indicating critical fatigue. This impairs your ability to react to road hazards. ${baseMessage} ${restMessage}`;
+        return t('result_desc_critical_cognitive_fatigue', {
+          baseMessage,
+          restMessage,
+        });
       case 'Fatigue Detected':
-        return `Our system detected signs of significant fatigue, which can slow your reaction time. ${baseMessage} ${restMessage}`;
+        return t('result_desc_fatigue_detected', {
+          baseMessage,
+          restMessage,
+        });
       case 'Intoxication Detected':
-        return `Our system detected signs of intoxication. ${baseMessage} ${restMessage}`;
+        return t('result_desc_intoxication_detected', {
+          baseMessage,
+          restMessage,
+        });
       case 'Fever Detected':
-        return `Our system detected potential signs of fever. For your safety and the safety of others, please rest. ${baseMessage}`;
+        return t('result_desc_fever_detected', {baseMessage});
       case 'Please remove eyewear and rescan':
-        return `You appear to be wearing eyewear. Please remove any glasses or sunglasses and perform the scan again to continue.`;
+        return t('result_desc_remove_eyewear');
       default:
-        return `A significant issue was detected: ${reason}. ${baseMessage} ${restMessage}`;
+        return t('result_desc_general_issue', {
+          reason: reason || t('unknown_status'),
+          baseMessage,
+          restMessage,
+        });
     }
   };
 
   const statusConfig = {
     GREEN: {
       icon: <ShieldCheck className="h-24 w-24 text-green-500" />,
-      title: "You're cleared to start!",
-      description: "You've passed the readiness check. Have a safe and productive shift.",
+      title: t('result_green_title'),
+      description: t('result_green_description'),
       bgColor: 'bg-green-500/10',
     },
     YELLOW: {
       icon: <ShieldAlert className="h-24 w-24 text-yellow-500" />,
-      title: 'Limited Access Granted',
-      description: 'A minor cognitive delay was detected. Please stick to local, low-speed deliveries and avoid highways. Re-check in 2 hours.',
+      title: t('result_yellow_title'),
+      description: t('result_yellow_description'),
       bgColor: 'bg-yellow-500/10',
     },
     RED: {
       icon: <ShieldOff className="h-24 w-24 text-red-500" />,
-      title: reason === 'Please remove eyewear and rescan' ? 'Action Required' : 'Mandatory Rest Required',
+      title:
+        reason === 'Please remove eyewear and rescan'
+          ? t('action_required')
+          : t('mandatory_rest_required'),
       description: getRedStatusDescription(reason),
       bgColor: 'bg-red-500/10',
     },
@@ -157,10 +188,14 @@ function ResultContent() {
             <p className="text-muted-foreground mb-6">{config.description}</p>
             <div className="flex gap-4 justify-center">
             <Button asChild>
-              <Link href="/">Go to Dashboard</Link>
+              <Link href={withLocale('/', locale)}>{t('go_to_dashboard')}</Link>
             </Button>
             <Button asChild variant={status === 'RED' ? 'default' : 'outline'}>
-                <Link href="/check">{reason === 'Please remove eyewear and rescan' ? 'Scan Again' : 'Re-check Status'}</Link>
+                <Link href={withLocale('/check', locale)}>
+                  {reason === 'Please remove eyewear and rescan'
+                    ? t('scan_again')
+                    : t('re_check_status')}
+                </Link>
             </Button>
             </div>
         </CardContent>

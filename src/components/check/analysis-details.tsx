@@ -13,6 +13,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useLanguage } from '@/context/language-context';
+import { getMessagesForLocale } from '@/lib/i18n';
 
 const MoodIcon = ({ mood }: { mood: string }) => {
   const commonProps = {
@@ -78,10 +80,14 @@ const SignalIndicator = ({
   label,
   detected,
   description,
+  detectedText,
+  notDetectedText,
 }: {
   label: string;
   detected: boolean;
   description?: string;
+  detectedText: string;
+  notDetectedText: string;
 }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-1.5">
@@ -102,12 +108,12 @@ const SignalIndicator = ({
     {detected ? (
       <div className="flex items-center gap-2 text-destructive">
         <ShieldAlert className="h-5 w-5" />
-        <span>Detected</span>
+        <span>{detectedText}</span>
       </div>
     ) : (
       <div className="flex items-center gap-2 text-green-500">
         <ShieldCheck className="h-5 w-5" />
-        <span>Not Detected</span>
+        <span>{notDetectedText}</span>
       </div>
     )}
   </div>
@@ -118,44 +124,57 @@ type AnalysisDetailsProps = {
 }
 
 export function AnalysisDetails({ impairmentResult }: AnalysisDetailsProps) {
+    const { language } = useLanguage();
+    const messages = getMessagesForLocale(language);
+    const t = (key: string) => messages[key] || key;
     if (!impairmentResult) return null;
+    const moodKey = `mood_${String(impairmentResult.mood || '').toLowerCase()}`;
+    const localizedMood = t(moodKey) || impairmentResult.mood;
 
     return (
         <Card className="w-full">
             <CardHeader>
-            <CardTitle>Analysis Details</CardTitle>
+            <CardTitle>{t('analysis_details_title')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
             <div className="flex items-center justify-between rounded-lg bg-muted p-4">
                 <div className="space-y-1">
-                <p className="text-sm font-medium">Mood Meter</p>
+                <p className="text-sm font-medium">{t('mood_meter')}</p>
                 <p className="text-2xl font-bold capitalize">
-                    {impairmentResult.mood}
+                    {localizedMood}
                 </p>
                 </div>
                 <MoodIcon mood={impairmentResult.mood} />
             </div>
             <div className="space-y-4">
-                <h3 className="font-semibold">Health & Impairment Signals</h3>
+                <h3 className="font-semibold">{t('health_impairment_signals')}</h3>
                 <SignalIndicator
-                label="Intoxication"
+                label={t('signal_intoxication')}
                 detected={impairmentResult.intoxicationDetected}
-                description="Impairment from alcohol or other substances, detected through signs like eye redness and pupil reactivity."
+                description={t('signal_intoxication_desc')}
+                detectedText={t('detected')}
+                notDetectedText={t('not_detected')}
                 />
                 <SignalIndicator
-                label="Fatigue"
+                label={t('signal_fatigue')}
                 detected={impairmentResult.fatigueDetected}
-                description="A state of tiredness detected through signs like slow eye movement, facial drooping, and failure to follow blink instructions."
+                description={t('signal_fatigue_desc')}
+                detectedText={t('detected')}
+                notDetectedText={t('not_detected')}
                 />
                 <SignalIndicator
-                  label="Stress"
+                  label={t('signal_stress')}
                   detected={impairmentResult.stressDetected}
-                  description="Signs of high stress, such as facial tension or a furrowed brow, which can impact focus and decision-making."
+                  description={t('signal_stress_desc')}
+                  detectedText={t('detected')}
+                  notDetectedText={t('not_detected')}
                 />
                 <SignalIndicator
-                label="Fever"
+                label={t('signal_fever')}
                 detected={impairmentResult.feverDetected}
-                description="An abnormally high body temperature, often a sign of illness, detected through indicators like flushed skin and excessive sweating."
+                description={t('signal_fever_desc')}
+                detectedText={t('detected')}
+                notDetectedText={t('not_detected')}
                 />
             </div>
             </CardContent>

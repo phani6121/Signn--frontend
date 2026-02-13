@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 
 import { CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslations } from 'next-intl';
 
 // ✅ MediaPipe imports
 import { initFaceLandmarker } from '@/lib/vision/faceLandmarker';
@@ -88,6 +89,7 @@ const GaugeMeter = ({
 
 /* ------------------ Main Component ------------------ */
 export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
+  const t = useTranslations();
   const [status, setStatus] = useState<'idle' | 'scanning' | 'complete'>(
     'idle'
   );
@@ -118,8 +120,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
     if (!userId) {
       toast({
         variant: 'destructive',
-        title: 'Session Error',
-        description: 'Missing user ID for scan session.',
+        title: t('session_error_title'),
+        description: t('missing_user_id_scan_session'),
       });
       return null;
     }
@@ -134,8 +136,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
       if (!shiftRes.ok) {
         toast({
           variant: 'destructive',
-          title: 'Shift Error',
-          description: 'Unable to start shift for scan.',
+          title: t('shift_error_title'),
+          description: t('unable_start_shift_scan'),
         });
         return null;
       }
@@ -153,8 +155,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
     if (!scanRes.ok) {
       toast({
         variant: 'destructive',
-        title: 'Scan Error',
-        description: 'Unable to start scan session.',
+        title: t('scan_error_title'),
+        description: t('unable_start_scan_session'),
       });
       return null;
     }
@@ -207,8 +209,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
       setHasCameraPermission(false);
       toast({
         variant: 'destructive',
-        title: 'Camera Blocked',
-        description: 'Please allow camera permission in browser settings.',
+        title: t('camera_blocked_title'),
+        description: t('camera_blocked_desc'),
       });
     }
   };
@@ -290,7 +292,9 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
                 }
               }
             } catch (err) {
-              console.error('FaceLandmarker detectForVideo error:', err);
+              if (detectErrorStreakRef.current === 0) {
+                console.warn('FaceLandmarker frame dropped; retrying.');
+              }
               detectErrorStreakRef.current += 1;
               // Allow transient frame-level errors without aborting the whole scan.
               if (detectErrorStreakRef.current >= 5) {
@@ -301,8 +305,8 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
                 }
                 toast({
                   variant: 'destructive',
-                  title: 'Vision Error',
-                  description: 'Face analysis failed. Please try again.',
+                  title: t('vision_error_title'),
+                  description: t('vision_error_desc'),
                 });
               }
             }
@@ -368,7 +372,7 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-center">Quick Readiness Check</CardTitle>
+        <CardTitle className="text-center">{t('quick_readiness_check')}</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col items-center gap-4">
@@ -384,15 +388,17 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
           {status === 'scanning' && (
             <div className="absolute inset-0 flex flex-col justify-end gap-4 p-4 bg-black/60">
               <div className="flex justify-around">
-                <GaugeMeter label="Focus" value={healthValue} variant="health" />
-                <GaugeMeter label="Stress Level" value={stressValue} variant="stress" />
-                <GaugeMeter label="Energy" value={moodValue} variant="mood" />
+                <GaugeMeter label={t('focus_label')} value={healthValue} variant="health" />
+                <GaugeMeter label={t('stress_level_label')} value={stressValue} variant="stress" />
+                <GaugeMeter label={t('energy_label')} value={moodValue} variant="mood" />
               </div>
 
               <Progress value={scanProgress} className="h-3" />
 
               <p className="text-center text-white font-semibold">
-                {15 - Math.floor((scanProgress / 100) * 15)} seconds remaining...
+                {t('seconds_remaining', {
+                  count: 15 - Math.floor((scanProgress / 100) * 15),
+                })}
               </p>
             </div>
           )}
@@ -400,13 +406,13 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
           {status === 'complete' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70">
               <CheckCircle className="h-16 w-16 text-green-500" />
-              <p className="text-white text-xl font-bold">Scan Complete</p>
+              <p className="text-white text-xl font-bold">{t('scan_complete')}</p>
             </div>
           )}
         </div>
 
         <p className="text-sm text-muted-foreground text-center">
-          Keep your face visible for a few seconds.
+          {t('keep_face_visible')}
         </p>
 
         <Button
@@ -416,18 +422,18 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
         >
           {hasCameraPermission
             ? status === 'idle'
-              ? 'Start Check'
+              ? t('start_check')
               : status === 'scanning'
-              ? 'Scanning...'
-              : 'Done'
-            : 'Enable Camera First'}
+              ? t('scanning')
+              : t('done')
+            : t('enable_camera_first')}
         </Button>
 
         {!hasCameraPermission && (
           <Alert variant="destructive">
-            <AlertTitle>Camera Permission Needed</AlertTitle>
+            <AlertTitle>{t('camera_permission_needed')}</AlertTitle>
             <AlertDescription>
-              Click button to allow camera access.
+              {t('camera_permission_desc')}
             </AlertDescription>
           </Alert>
         )}

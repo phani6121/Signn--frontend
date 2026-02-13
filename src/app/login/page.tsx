@@ -2,6 +2,7 @@
  
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
@@ -28,33 +29,86 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { withLocale } from '@/i18n/config';
  
+type LoginDraft = {
+  username: string;
+  password: string;
+  userType: 'employee' | 'gig_worker' | '';
+};
+
 export default function LoginPage() {
+  const LOGIN_DRAFT_KEY = 'login:draft';
+  const getInitialDraft = (): LoginDraft => {
+    if (typeof window === 'undefined') {
+      return { username: '', password: '', userType: '' };
+    }
+    try {
+      const raw = sessionStorage.getItem(LOGIN_DRAFT_KEY);
+      if (!raw) return { username: '', password: '', userType: '' };
+      const parsed = JSON.parse(raw) as Partial<LoginDraft>;
+      const userType =
+        parsed.userType === 'employee' || parsed.userType === 'gig_worker'
+          ? parsed.userType
+          : '';
+      return {
+        username: typeof parsed.username === 'string' ? parsed.username : '',
+        password: typeof parsed.password === 'string' ? parsed.password : '',
+        userType,
+      };
+    } catch {
+      return { username: '', password: '', userType: '' };
+    }
+  };
+
+  const initialDraft = getInitialDraft();
   const loginHeroImage = PlaceHolderImages.find(
     (img) => img.id === 'login-hero'
   );
   const { login, loginWithCredentials } = useAuth();
   const { language, setLanguage, languages } = useLanguage();
+  const router = useRouter();
   const t = useTranslations();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginRole, setLoginRole] = useState<'rider' | 'admin' | null>(null);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState(initialDraft.username);
+  const [password, setPassword] = useState(initialDraft.password);
   const [error, setError] = useState('');
-  const [userType, setUserType] = useState<'employee' | 'gig_worker' | ''>('');
- 
+  const [userType, setUserType] = useState<'employee' | 'gig_worker' | ''>(initialDraft.userType);
+  const persistDraft = (
+    next: Partial<{
+      username: string;
+      password: string;
+      userType: 'employee' | 'gig_worker' | '';
+    }>
+  ) => {
+    try {
+      sessionStorage.setItem(
+        LOGIN_DRAFT_KEY,
+        JSON.stringify({
+          username,
+          password,
+          userType,
+          ...next,
+        })
+      );
+    } catch (err) {
+      console.error('Failed to persist login draft:', err);
+    }
+  };
+
   const handleRiderLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
    
     if (!userType) {
-      setError('Please select a user type');
+      setError(t('error_select_user_type'));
       return;
     }
 
     if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
+      setError(t('error_enter_credentials'));
       return;
     }
    
@@ -65,19 +119,22 @@ export default function LoginPage() {
       const result = await loginWithCredentials(username, password, language, userType || undefined);
      
       if (!result.success) {
-        setError(result.error || 'Login failed');
+        setError(result.error || t('error_login_failed'));
         toast({
           variant: 'destructive',
-          title: 'Login Failed',
-          description: result.error || 'Invalid username or password',
+          title: t('title_login_failed'),
+          description: result.error || t('error_login_invalid_credentials'),
         });
+      } else {
+        sessionStorage.removeItem(LOGIN_DRAFT_KEY);
+        router.replace(withLocale('/', language));
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError(t('error_login_generic'));
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'An error occurred during login',
+        title: t('title_error'),
+        description: t('error_login_occurred'),
       });
     } finally {
       setIsLoggingIn(false);
@@ -86,6 +143,7 @@ export default function LoginPage() {
   };
  
   const handleAdminLogin = () => {
+    sessionStorage.removeItem(LOGIN_DRAFT_KEY);
     setLoginRole('admin');
     setIsLoggingIn(true);
     login('admin');
@@ -97,7 +155,7 @@ export default function LoginPage() {
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
             <Logo />
-            <h1 className="text-3xl font-bold mt-4">Login</h1>
+            <h1 className="text-3xl font-bold mt-4">{t('login_title')}</h1>
             <p className="text-balance text-muted-foreground">
               {t('enter_rider_id')}
             </p>
@@ -106,76 +164,93 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle className="text-2xl">{t('rider_access')}</CardTitle>
               <CardDescription>
-                Enter your username and password to login
+                {t('login_card_description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleRiderLogin} className="grid gap-4">
+              <form onSubmit={handleRiderLogin} className="grid gap-4" autoComplete="off">
                 <div className="grid gap-2">
-                  <Label htmlFor="user-type">User Type</Label>
+                  <Label htmlFor="user-type">{t('label_user_type')}</Label>
                   <Select
                     value={userType}
-                    onValueChange={(value) => setUserType(value as typeof userType)}
+                    onValueChange={(value) => {
+                      const nextUserType = value as typeof userType;
+                      setUserType(nextUserType);
+                      persistDraft({ userType: nextUserType });
+                    }}
                   >
                     <SelectTrigger id="user-type">
-                      <SelectValue placeholder="Select user type" />
+                      <SelectValue placeholder={t('placeholder_select_user_type')} />
                     </SelectTrigger>
                     <SelectContent className=" text-black border-[#3647A6]">
                       <SelectItem
                         value="employee"
                         className="focus:bg-[#3647A6] focus:text-white data-[state=checked]:bg-[#3647A6] data-[state=checked]:text-white"
                       >
-                        Employee
+                        {t('option_employee')}
                       </SelectItem>
                       <SelectItem
                         value="gig_worker"
                         className="focus:bg-[#3647A6] focus:text-white data-[state=checked]:bg-[#3647A6] data-[state=checked]:text-white"
                       >
-                        Gig Worker
+                        {t('option_gig_worker')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">{t('label_username')}</Label>
                   <Input
                     id="username"
                     type="text"
-                    placeholder="Enter your username"
+                    placeholder={t('placeholder_username')}
                     required
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="off"
+                    onChange={(e) => {
+                      const nextUsername = e.target.value;
+                      setUsername(nextUsername);
+                      persistDraft({ username: nextUsername });
+                    }}
                     disabled={isLoggingIn}
                   />
                 </div>
                 <div className="grid gap-2">
                   <div className="flex items-center">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t('label_password')}</Label>
                     <Link
                       href="#"
                       className="ml-auto inline-block text-sm underline"
                     >
-                      Forgot your password?
+                      {t('forgot_password')}
                     </Link>
                   </div>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder={t('placeholder_password')}
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="off"
+                    onChange={(e) => {
+                      const nextPassword = e.target.value;
+                      setPassword(nextPassword);
+                      persistDraft({ password: nextPassword });
+                    }}
                     disabled={isLoggingIn}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="language">Select Language</Label>
+                  <Label htmlFor="language">{t('label_select_language')}</Label>
                   <Select
                     value={language}
-                    onValueChange={(value) => setLanguage(value as typeof language)}
+                    onValueChange={(value) => {
+                      persistDraft({});
+                      setLanguage(value as typeof language);
+                    }}
                   >
                     <SelectTrigger id="language">
-                      <SelectValue placeholder="Select language" />
+                      <SelectValue placeholder={t('placeholder_select_language')} />
                     </SelectTrigger>
                     <SelectContent className=" text-black border-[#3647A6]">
                       {languages.map((lang) => (
@@ -201,7 +276,7 @@ export default function LoginPage() {
                   {isLoggingIn && loginRole === 'rider' ? (
                     <Loader2 className="animate-spin" />
                   ) : (
-                    'Login'
+                    t('button_login')
                   )}
                 </Button>
               </form>
@@ -218,7 +293,7 @@ export default function LoginPage() {
               {isLoggingIn && loginRole === 'admin' ? (
                 <Loader2 className="animate-spin" />
               ) : (
-                'Login as Admin'
+                t('button_login_admin')
               )}
             </Button>
           </div>
