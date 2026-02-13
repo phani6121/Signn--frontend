@@ -90,7 +90,7 @@ export default function AdminLedgerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit] = useState(20);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [riderQuery, setRiderQuery] = useState('');
   const [riderIdFilter, setRiderIdFilter] = useState<string | null>(null);

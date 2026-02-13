@@ -391,7 +391,6 @@ export function CameraCapture({ onCapture, userId }: CameraCaptureProps) {
 
               <Progress value={scanProgress} className="h-3" />
 
-
               <p className="text-center text-white font-semibold">
                 {15 - Math.floor((scanProgress / 100) * 15)} seconds remaining...
               </p>

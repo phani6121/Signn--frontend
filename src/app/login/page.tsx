@@ -88,10 +88,7 @@ export default function LoginPage() {
   const handleAdminLogin = () => {
     setLoginRole('admin');
     setIsLoggingIn(true);
-    // Simulate network delay for admin login
-    setTimeout(() => {
-      login('admin');
-    }, 1000);
+    login('admin');
   };
  
   return (
