@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RiderStatus } from '@/lib/types';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { getLocaleFromPathname, withLocale } from '@/i18n/config';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY;
@@ -61,6 +63,8 @@ function normalizeStatus(input?: string | null): RiderStatus | null {
 }
 
 export function RecentChecks() {
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const [checks, setChecks] = useState<RecentCheck[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +167,7 @@ export function RecentChecks() {
           </Select>
 
           <Button asChild size="sm" className="gap-1">
-            <Link href="/admin/ledger">
+            <Link href={withLocale('/admin/ledger', locale)}>
               View Full Ledger <ArrowUpRight className="h-4 w-4" />
             </Link>
           </Button>

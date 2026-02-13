@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Bell,
   Home,
@@ -33,32 +36,39 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from '@/components/logo';
 import { UserNav } from '@/components/user-nav';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { getLocaleFromPathname, withLocale } from '@/i18n/config';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
+  const dashboardHref = withLocale('/admin', locale);
+  const ledgerHref = withLocale('/admin/ledger', locale);
+  const homeHref = withLocale('/', locale);
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-muted/40 md:block md:min-h-screen">
         <div className="flex h-full min-h-screen flex-col justify-between">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
+            <Link href={homeHref} className="flex items-center gap-2 font-semibold">
               <Logo />
             </Link>
           </div>
           <div className="flex-1">
             <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
               <Link
-                href="/admin"
+                href={dashboardHref}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
               </Link>
               <Link
-                href="/admin/ledger"
+                href={ledgerHref}
                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
               >
                 <ScrollText className="h-4 w-4" />
@@ -106,14 +116,14 @@ export default function AdminLayout({
                   <Logo />
                 </Link>
                 <Link
-                  href="/admin"
+                  href={dashboardHref}
                   className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
                 >
                   <LayoutDashboard className="h-5 w-5" />
                   Dashboard
                 </Link>
                 <Link
-                  href="/admin/ledger"
+                  href={ledgerHref}
                   className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
                 >
                   <ScrollText className="h-5 w-5" />

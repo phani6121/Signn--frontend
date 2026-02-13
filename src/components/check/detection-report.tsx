@@ -5,13 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { DetectionResult } from '@/app/actions';
+import { useLanguage } from '@/context/language-context';
+import { getMessagesForLocale } from '@/lib/i18n';
 
 export function DetectionReport({ report }: { report?: DetectionResult | null }) {
+  const { language } = useLanguage();
+  const messages = getMessagesForLocale(language);
+  const t = (key: string) => messages[key] || key;
   if (!report) {
     return (
       <div className="w-full max-w-lg">
         <Alert>
-          <AlertDescription>No detection report available yet.</AlertDescription>
+          <AlertDescription>{t('no_detection_report_yet')}</AlertDescription>
         </Alert>
       </div>
     );
@@ -33,13 +38,13 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'red':
-        return 'CRITICAL - Action Required';
+        return t('detection_status_red');
       case 'orange':
-        return 'WARNING - Caution Advised';
+        return t('detection_status_orange');
       case 'green':
-        return 'OK - All Clear';
+        return t('detection_status_green');
       default:
-        return 'Unknown Status';
+        return t('unknown_status');
     }
   };
 
@@ -58,19 +63,49 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
 
   const getDetectionStatusBadge = (detection: any) => {
     if (detection.status === 'critical') {
-      return <Badge variant="destructive">Critical</Badge>;
+      return <Badge variant="destructive">{t('critical')}</Badge>;
     } else if (detection.status === 'warning') {
       return (
         <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-          Warning
+          {t('warning')}
         </Badge>
       );
     } else {
       return (
         <Badge variant="outline" className="bg-green-100 text-green-800">
-          Normal
+          {t('normal')}
         </Badge>
       );
+    }
+  };
+
+  const getDetectionLabel = (name: string) => {
+    switch (name) {
+      case 'intoxication':
+        return t('signal_intoxication');
+      case 'fatigue':
+        return t('signal_fatigue');
+      case 'stress':
+        return t('signal_stress');
+      case 'fever':
+        return t('signal_fever');
+      default:
+        return name.replace(/_/g, ' ');
+    }
+  };
+
+  const getDetectionDescription = (name: string) => {
+    switch (name) {
+      case 'intoxication':
+        return t('signal_intoxication_desc');
+      case 'fatigue':
+        return t('signal_fatigue_desc');
+      case 'stress':
+        return t('signal_stress_desc');
+      case 'fever':
+        return t('signal_fever_desc');
+      default:
+        return '';
     }
   };
 
@@ -90,16 +125,14 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {report.action_message && (
-            <p className="text-sm font-medium">{report.action_message}</p>
-          )}
+          <p className="text-sm font-medium">{t('detection_action_message')}</p>
         </CardContent>
       </Card>
 
       {/* Detections Details */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Health & Impairment Signals</CardTitle>
+          <CardTitle className="text-lg">{t('health_impairment_signals')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {Object.entries(detections).map(([impairmentName, detection]) => (
@@ -108,8 +141,8 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
               className="flex items-center justify-between p-3 border rounded-lg"
             >
               <div className="flex-1">
-                <p className="font-medium capitalize">{impairmentName.replace(/_/g, ' ')}</p>
-                <p className="text-xs text-muted-foreground">{detection.details}</p>
+                <p className="font-medium capitalize">{getDetectionLabel(impairmentName)}</p>
+                <p className="text-xs text-muted-foreground">{getDetectionDescription(impairmentName)}</p>
               </div>
               <div className="flex items-center gap-2">
                 {detection.detected ? (
@@ -128,7 +161,7 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
       {recommendations.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recommendations</CardTitle>
+            <CardTitle className="text-lg">{t('recommendations')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -145,7 +178,7 @@ export function DetectionReport({ report }: { report?: DetectionResult | null })
 
       {/* Check ID for reference */}
       <div className="text-center text-xs text-muted-foreground p-2 bg-muted rounded">
-        Check ID: {report.check_id}
+        {t('check_id')}: {report.check_id}
       </div>
     </div>
   );

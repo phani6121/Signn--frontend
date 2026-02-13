@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BrainCircuit, Check, Flag, Play, RefreshCw, Timer } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 type CognitiveTestProps = {
   onComplete: (averageLatency: number, roundLatencies: number[]) => void;
@@ -14,6 +15,7 @@ const TOTAL_ROUNDS = 5;
 const LATENCY_BIAS_MS = 120;
 
 export function CognitiveTest({ onComplete }: CognitiveTestProps) {
+  const t = useTranslations();
   const [gameState, setGameState] = useState<GameState>('idle');
   const [latencies, setLatencies] = useState<number[]>([]);
   const [dotPosition, setDotPosition] = useState({ top: '50%', left: '50%' });
@@ -76,7 +78,7 @@ export function CognitiveTest({ onComplete }: CognitiveTestProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-center">Cognitive Pulse Test</CardTitle>
+        <CardTitle className="text-center">{t('cognitive_pulse_test')}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-4">
         <div
@@ -86,10 +88,10 @@ export function CognitiveTest({ onComplete }: CognitiveTestProps) {
           {gameState === 'idle' && (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
               <BrainCircuit className="h-16 w-16" />
-              <p>Click the dot as fast as you can when it appears.</p>
+              <p>{t('cognitive_click_dot_instruction')}</p>
             </div>
           )}
-          {gameState === 'waiting' && <p className="text-center mt-24">Get ready...</p>}
+          {gameState === 'waiting' && <p className="text-center mt-24">{t('get_ready')}</p>}
           {gameState === 'active' && (
             <div
               className="absolute h-12 w-12 bg-primary rounded-full transform -translate-x-1/2 -translate-y-1/2"
@@ -99,18 +101,18 @@ export function CognitiveTest({ onComplete }: CognitiveTestProps) {
            {gameState === 'finished' && (
             <div className="flex flex-col items-center justify-center h-full gap-2 text-green-500">
                 <Check className="h-16 w-16" />
-                <p>Test Complete!</p>
-                <p className="text-sm">Average Reaction: {averageLatency}ms</p>
+                <p>{t('test_complete')}</p>
+                <p className="text-sm">{t('average_reaction')}: {averageLatency}ms</p>
             </div>
           )}
         </div>
         <div className="flex justify-between w-full text-sm text-muted-foreground">
-          <span><Flag className="inline h-4 w-4 mr-1"/>Round: {latencies.length}/{TOTAL_ROUNDS}</span>
-          <span><Timer className="inline h-4 w-4 mr-1"/>Avg: {averageLatency}ms</span>
+          <span><Flag className="inline h-4 w-4 mr-1"/>{t('round')}: {latencies.length}/{TOTAL_ROUNDS}</span>
+          <span><Timer className="inline h-4 w-4 mr-1"/>{t('avg')}: {averageLatency}ms</span>
         </div>
-        {gameState === 'idle' && <Button onClick={handleStart} className="w-full"><Play className="mr-2 h-4 w-4"/>Start Test</Button>}
-        {gameState === 'finished' && <Button onClick={handleReset} variant="outline" className="w-full"><RefreshCw className="mr-2 h-4 w-4"/>Restart Test</Button>}
-        {(gameState === 'waiting' || gameState === 'active') && <Button disabled className="w-full">Test in Progress...</Button>}
+        {gameState === 'idle' && <Button onClick={handleStart} className="w-full"><Play className="mr-2 h-4 w-4"/>{t('start_test')}</Button>}
+        {gameState === 'finished' && <Button onClick={handleReset} variant="outline" className="w-full"><RefreshCw className="mr-2 h-4 w-4"/>{t('restart_test')}</Button>}
+        {(gameState === 'waiting' || gameState === 'active') && <Button disabled className="w-full">{t('test_in_progress')}</Button>}
       </CardContent>
     </Card>
   );

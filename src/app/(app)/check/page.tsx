@@ -42,17 +42,6 @@ import { behavioralQuestions, type BehavioralQuestion } from '@/lib/behavioral-q
 
 type Step = 'consent' | 'vision' | 'vision-result' | 'cognitive' | 'behavioral' | 'submitting';
 
-const STEPS: { id: Exclude<Step, 'vision-result' | 'submitting'>; title: string; icon: React.ReactNode }[] = [
-  { id: 'consent', title: 'Privacy Consent', icon: <FileCheck2 /> },
-  { id: 'vision', title: 'Readiness Step', icon: <Camera /> },
-  { id: 'cognitive', title: 'Cognitive Test', icon: <BrainCircuit /> },
-  {
-    id: 'behavioral',
-    title: 'Behavioral Check',
-    icon: <MessageSquare />,
-  },
-];
-
 export default function ShiftCheckPage() {
   const searchParams = useSearchParams();
   const shiftParam = searchParams.get('shift');
@@ -74,6 +63,16 @@ export default function ShiftCheckPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const t = useTranslations();
+  const STEPS: { id: Exclude<Step, 'vision-result' | 'submitting'>; title: string; icon: React.ReactNode }[] = [
+    { id: 'consent', title: t('step_privacy_consent'), icon: <FileCheck2 /> },
+    { id: 'vision', title: t('step_readiness_step'), icon: <Camera /> },
+    { id: 'cognitive', title: t('step_cognitive_test'), icon: <BrainCircuit /> },
+    {
+      id: 'behavioral',
+      title: t('step_behavioral_check'),
+      icon: <MessageSquare />,
+    },
+  ];
   const shiftTypeForSession = user?.user_type === 'employee' ? shiftType : undefined;
   const storageKey = user?.id ? `checkSession:${user.id}` : null;
 
@@ -174,8 +173,8 @@ export default function ShiftCheckPage() {
     } else {
       toast({
         variant: 'destructive',
-        title: 'Analysis Failed',
-        description: 'Could not analyze the image. Please try again.',
+        title: t('analysis_failed_title'),
+        description: t('analysis_failed_desc'),
       });
       setCurrentStep('vision'); // Go back to vision step
     }
@@ -197,8 +196,8 @@ export default function ShiftCheckPage() {
     if (!checkData.impairmentResult) {
         toast({
           variant: 'destructive',
-          title: 'Incomplete Check',
-          description: 'Please complete the vision analysis step.',
+          title: t('incomplete_check_title'),
+          description: t('incomplete_check_desc'),
         });
         return;
     }
@@ -215,8 +214,8 @@ export default function ShiftCheckPage() {
     if (!sessionId) {
       toast({
         variant: 'destructive',
-        title: 'Session Error',
-        description: 'Unable to save check. Please try again.',
+        title: t('session_error_title'),
+        description: t('session_error_desc'),
       });
       return;
     }
@@ -247,19 +246,19 @@ export default function ShiftCheckPage() {
   };
 
   const getStepTitle = () => {
-    if (currentStep === 'vision-result') return 'Vision Analysis Result';
-    if (currentStep === 'submitting') return 'Evaluating...';
+    if (currentStep === 'vision-result') return t('step_vision_result');
+    if (currentStep === 'submitting') return t('step_evaluating');
     if(currentStepIndex > -1) return STEPS[currentStepIndex].title;
-    return 'Shift Readiness Check';
+    return t('step_shift_readiness_check');
   }
 
 
   return (
     <div className="flex flex-col items-center gap-8">
       <div className="w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold">Readiness Check</h1>
+        <h1 className="text-3xl font-bold">{t('readiness_check_title')}</h1>
         <p className="text-muted-foreground">
-          Quick 15-second readiness check.
+          {t('readiness_check_subtitle')}
         </p>
         <Progress value={progress} className="mt-4" />
         <p className="text-sm mt-2 text-muted-foreground">{getStepTitle()}</p>
@@ -268,8 +267,8 @@ export default function ShiftCheckPage() {
       {currentStep === 'submitting' || (isSubmitting && currentStep !== 'vision-result') ? (
          <div className="flex flex-col items-center justify-center gap-4 p-8">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-lg font-semibold">Evaluating your results...</p>
-          <p className="text-muted-foreground">This may take a moment.</p>
+          <p className="text-lg font-semibold">{t('evaluating_results_title')}</p>
+          <p className="text-muted-foreground">{t('evaluating_results_subtitle')}</p>
         </div>
       ) : (
         <>
@@ -312,7 +311,7 @@ export default function ShiftCheckPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Loader2 className="animate-spin" /> Analyzing Scan...
+                      <Loader2 className="animate-spin" /> {t('analyzing_scan_title')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center gap-4">
@@ -326,7 +325,7 @@ export default function ShiftCheckPage() {
                       />
                     )}
                     <p className="text-muted-foreground text-center">
-                      Please wait a moment while we analyze your facial signals for impairment.
+                      {t('analyzing_scan_desc')}
                     </p>
                   </CardContent>
                 </Card>
@@ -338,24 +337,26 @@ export default function ShiftCheckPage() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive">
                           <ShieldAlert />
-                          Action Required
+                          {t('action_required')}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-destructive mb-4">{`A critical issue was detected: ${preliminaryReason}. You cannot proceed with the check.`}</p>
+                        <p className="text-destructive mb-4">
+                          {t('critical_issue_detected_message', {reason: preliminaryReason})}
+                        </p>
                         <Button
                           onClick={handleSubmit}
                           className="w-full"
                           variant="destructive"
                         >
-                          See Full Result
+                          {t('see_full_result')}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </CardContent>
                     </Card>
                   ) : (
                     <Button onClick={goToNextStep} className="w-full">
-                      Continue to Cognitive Test
+                      {t('continue_to_cognitive_test')}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   )}
@@ -371,9 +372,9 @@ export default function ShiftCheckPage() {
           {currentStep === 'behavioral' && (
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Behavioral Check</CardTitle>
+                <CardTitle>{t('step_behavioral_check')}</CardTitle>
                 <CardDescription>
-                  Answer these quick questions based on your training.
+                  {t('behavioral_check_desc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6">
@@ -395,7 +396,7 @@ export default function ShiftCheckPage() {
               </CardContent>
               <CardFooter>
                  <Button onClick={handleSubmit} className="w-full" disabled={Object.keys(behavioralAnswers).length < selectedQuestions.length}>
-                    Finish & Evaluate
+                    {t('finish_and_evaluate')}
                     <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
